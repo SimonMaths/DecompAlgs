@@ -15,12 +15,185 @@ declare type Dec;
 
 
 /*
- * DecAlg operations and functions
+ * DecAlg functions and operations
  */
+intrinsic FusionLaw(A::DecAlg) -> FusLaw
+  {
+    Returns the fusion law for A.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
 
+intrinsic Decompositions(A::DecAlg) -> Assoc[Dec]
+  {
+    Returns the decompositions of A as an associative array.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic Decomposition(A::DecAlg, i::.) -> Dec
+  {
+    Returns the ith decomposition of A.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic IndexSet(A::DecAlg) -> Set
+  {
+    Returns the set indexing the decompositions.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic Algebra(A::DecAlg) -> Alg
+  {
+    Returns the underlying algebra for A.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
 
 /*
- * DecAlgElt operations and functions
+ * Additional functions
+ */
+intrinsic MiyamotoGroup(A::DecAlg) -> Grp
+  {
+    Returns the full Miyamoto group of A.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGroup(A::DecAlg) -> Grp
+  {
+    Returns the full universal Miyamoto group of A.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoGroup(A::DecAlg, x::AlgChtrElt) -> Grp
+  {
+    Returns the Miyamoto group of A for the given character x.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGroup(A::DecAlg, x::AlgChtrElt) -> Grp
+  {
+    Returns the universal Miyamoto group of A for the given character x.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoGroup(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> Grp
+  {
+    Returns the Miyamoto group of A for the set of characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGroup(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> Grp
+  { 
+    Returns the universal Miyamoto group of A for the set of characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoGroup(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> Grp
+  {
+    Returns the Miyamoto group of A for the sequence of characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGroup(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> Grp
+  { 
+    Returns the universal Miyamoto group of A for the sequence of characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoGModule(A::DecAlg) -> ModGrp
+  {
+    Returns the module for the full Miyamoto group of A.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGModule(A::DecAlg) -> ModGrp
+  {
+    Returns the module for the full universal Miyamoto group of A.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoGModule(A::DecAlg, x::AlgChtrElt) -> ModGrp
+  {
+    Returns the module for the Miyamoto group of A for the given character x.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGModule(A::DecAlg, x::AlgChtrElt) -> ModGrp
+  {
+    Returns the module for the universal Miyamoto group of A for the given 
+    character x.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoGModule(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> ModGrp
+  {
+    Returns the module for the Miyamoto group of A for the set of characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGModule(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> ModGrp
+  { 
+    Returns the module for the universal Miyamoto group of A for the set of 
+    characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoGModule(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> ModGrp
+  {
+    Returns the module for the Miyamoto group of A for the sequence of 
+    characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+intrinsic UniversalMiyamotoGModule(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> ModGrp
+  { 
+    Returns the module for the universal Miyamoto group of A for the sequence of 
+    characters Y.
+  }
+  // NOT YET IMPLEMENTED
+  return Null;
+end intrinsic;
+
+/*
+ * DecAlgElt functions and operations
  */
 intrinsic Parent(x::DecAlgElt) -> DecAlg
   {
@@ -86,6 +259,22 @@ intrinsic IsIdentity(x::DecAlgElt) -> BoolElt
   return Null;
 end intrinsic;
 
+intrinsic IsNilpotent(x::DecAlgElt) -> BoolElt
+  {
+    Returns whether x is nilpotent.
+  }
+  // NOT YET IMPLEMENTED
+  return Null
+end intrinsic;
+
+intrinsic IsIdempotent(x::DecAlgElt) -> BoolElt
+  {
+    Returns whether x is idempotent.
+  }
+  // NOT YET IMPLEMENTED
+  return Null
+end intrinsic;
+
 /*
  * Operations for the elements
  */
@@ -145,33 +334,79 @@ intrinsic '/'(x::DecAlgElt, y::RngElt) -> DecAlgElt
   return Null;
 end intrinsic;
 
-intrinsic Parent(x::DecAlgElt) -> DecAlg
+intrinsic '*'(x::DecAlgElt, g::GrpElt) -> DecAlgElt
   {
-    Parent of x.
+    Returns the image of x under the action of g.
   }
   // NOT YET IMPLEMENTED
   return Null;
 end intrinsic;
 
-intrinsic Parent(x::DecAlgElt) -> DecAlg
+/*
+ * Dec functions and operations
+ */
+intrinsic Parent(D::Dec) -> .
   {
-    Parent of x.
+    Returns the algebra for which D is a decomposition.
   }
   // NOT YET IMPLEMENTED
   return Null;
 end intrinsic;
 
-intrinsic Parent(x::DecAlgElt) -> DecAlg
+intrinsic FusionLaw(D::Dec) -> FusLaw
   {
-    Parent of x.
+    Returns the fusion law for D.
   }
   // NOT YET IMPLEMENTED
   return Null;
 end intrinsic;
 
-intrinsic Parent(x::DecAlgElt) -> DecAlg
+// Can we implement the following using [] notation
+intrinsic Part(D::Dec, x::FusLawElt) -> ModTupRng
   {
-    Parent of x.
+    Returns the part of D for the fusion law element x.
+  }
+  // NOT YET IMPLMENTED
+  return Null;
+end intrinsic;
+
+intrinsic MiyamotoElement(D::Dec, x::AlgChtrElt) -> GrpElt
+  {
+    Returns the Miyamoto element for character x.
+  }
+  // NOT YET IMPLMENTED
+  return Null;
+end intrinsic;
+
+intrinsic DecompositionSubgroup(D::Dec) -> Grp
+  {
+    Returns the full decomposition subgroup of D.
+  }
+  // NOT YET IMPLMENTED
+  return Null;
+end intrinsic;
+
+intrinsic DecompositionSubgroup(D::Dec, Y::SetEnum[AlgChtrElt]) -> Grp
+  {
+    Returns the decomposition subgroup of D generated by the Miyamoto elements
+    associated to the characters in Y.
+  }
+  // NOT YET IMPLMENTED
+  return Null;
+end intrinsic;
+
+intrinsic DecompositionSubgroup(D::Dec, Y::SeqEnum[AlgChtrElt]) -> Grp
+  {
+    Returns the decomposition subgroup of D generated by the Miyamoto elements
+    associated to the characters in Y.
+  }
+  // NOT YET IMPLMENTED
+  return Null;
+end intrinsic;
+
+intrinsic IsAxial(D::Dec) -> BoolElt
+  {
+    Returns if the decomposition is axial
   }
   // NOT YET IMPLEMENTED
   return Null;
@@ -186,3 +421,30 @@ end intrinsic;
 declare type AxlDecAlg[AxlDecAlgElt], DecAlg;
 declare type AxlDec, Dec;
 
+/*
+ * AxlDecAlg functions and operations
+ */
+
+
+/*
+ * AxlDecAlgElt functions and operations
+ */
+
+/*
+ * AxlDec functions and operations
+ */
+intrinsic Axis(D::AxlDec) -> .
+  {
+    Returns the axis for D.
+  }
+  // NOT YET IMPLMENTED
+  return Null;
+end intrinsic;
+
+intrinsic Valuation(D::AxlDec) -> Map
+  {
+    Returns the valuation for D.
+  }
+  // NOT YET IMPLMENTED
+  return Null;
+end intrinsic;
