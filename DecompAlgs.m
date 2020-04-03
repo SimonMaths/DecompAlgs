@@ -6,8 +6,31 @@
 /*
  * These are the base types for decomposition algebras
  */
+
+// Need to think more carefully about these attributes!!
+
 declare type DecAlg[DecAlgElt];
+
+declare attributes DecAlg:
+  fusion_law,      // A FusLaw
+  decompositions,  // 
+  algebra,
+  Miyamoto_group,
+  Universal_Miyamoto_Group;
+
+declare attributes DecAlgElt:
+  parent,      // A FusLaw
+  elt;         // 
+
+
 declare type Dec;
+
+declare attributes Dec:
+  parent,
+  fusion_law,
+  group,
+  parts;
+  
 
 /*
  * Additional utility functions
@@ -21,16 +44,15 @@ intrinsic FusionLaw(A::DecAlg) -> FusLaw
   {
     Returns the fusion law for A.
   }
-  // NOT YET IMPLEMENTED
-  return Null;
+  return A`fusion_law;
 end intrinsic;
 
-intrinsic Decompositions(A::DecAlg) -> Assoc[Dec]
+intrinsic Decompositions(A::DecAlg) -> Assoc//[Dec]
   {
     Returns the decompositions of A as an associative array.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic Decomposition(A::DecAlg, i::.) -> Dec
@@ -38,7 +60,7 @@ intrinsic Decomposition(A::DecAlg, i::.) -> Dec
     Returns the ith decomposition of A.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic IndexSet(A::DecAlg) -> Set
@@ -46,7 +68,7 @@ intrinsic IndexSet(A::DecAlg) -> Set
     Returns the set indexing the decompositions.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic Algebra(A::DecAlg) -> Alg
@@ -54,7 +76,7 @@ intrinsic Algebra(A::DecAlg) -> Alg
     Returns the underlying algebra for A.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 /*
@@ -65,7 +87,7 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
     Returns the full Miyamoto group of A.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGroup(A::DecAlg) -> Grp
@@ -73,7 +95,7 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg) -> Grp
     Returns the full universal Miyamoto group of A.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic MiyamotoGroup(A::DecAlg, x::AlgChtrElt) -> Grp
@@ -81,7 +103,7 @@ intrinsic MiyamotoGroup(A::DecAlg, x::AlgChtrElt) -> Grp
     Returns the Miyamoto group of A for the given character x.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGroup(A::DecAlg, x::AlgChtrElt) -> Grp
@@ -89,7 +111,7 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg, x::AlgChtrElt) -> Grp
     Returns the universal Miyamoto group of A for the given character x.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic MiyamotoGroup(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> Grp
@@ -97,7 +119,7 @@ intrinsic MiyamotoGroup(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> Grp
     Returns the Miyamoto group of A for the set of characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGroup(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> Grp
@@ -105,7 +127,7 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> Grp
     Returns the universal Miyamoto group of A for the set of characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic MiyamotoGroup(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> Grp
@@ -113,7 +135,7 @@ intrinsic MiyamotoGroup(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> Grp
     Returns the Miyamoto group of A for the sequence of characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGroup(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> Grp
@@ -121,7 +143,7 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> Grp
     Returns the universal Miyamoto group of A for the sequence of characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic MiyamotoGModule(A::DecAlg) -> ModGrp
@@ -129,7 +151,7 @@ intrinsic MiyamotoGModule(A::DecAlg) -> ModGrp
     Returns the module for the full Miyamoto group of A.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGModule(A::DecAlg) -> ModGrp
@@ -137,7 +159,7 @@ intrinsic UniversalMiyamotoGModule(A::DecAlg) -> ModGrp
     Returns the module for the full universal Miyamoto group of A.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic MiyamotoGModule(A::DecAlg, x::AlgChtrElt) -> ModGrp
@@ -145,7 +167,7 @@ intrinsic MiyamotoGModule(A::DecAlg, x::AlgChtrElt) -> ModGrp
     Returns the module for the Miyamoto group of A for the given character x.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGModule(A::DecAlg, x::AlgChtrElt) -> ModGrp
@@ -154,7 +176,7 @@ intrinsic UniversalMiyamotoGModule(A::DecAlg, x::AlgChtrElt) -> ModGrp
     character x.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic MiyamotoGModule(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> ModGrp
@@ -162,7 +184,7 @@ intrinsic MiyamotoGModule(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> ModGrp
     Returns the module for the Miyamoto group of A for the set of characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGModule(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> ModGrp
@@ -171,7 +193,7 @@ intrinsic UniversalMiyamotoGModule(A::DecAlg, Y::SetEnum[AlgChtrElt]) -> ModGrp
     characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic MiyamotoGModule(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> ModGrp
@@ -180,7 +202,7 @@ intrinsic MiyamotoGModule(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> ModGrp
     characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGModule(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> ModGrp
@@ -189,18 +211,20 @@ intrinsic UniversalMiyamotoGModule(A::DecAlg, Y::SeqEnum[AlgChtrElt]) -> ModGrp
     characters Y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 /*
- * DecAlgElt functions and operations
- */
+
+======= DecAlgElt functions and operations =======
+
+*/
 intrinsic Parent(x::DecAlgElt) -> DecAlg
   {
     Return the parent of x.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic Print(x::DecAlgElt)
@@ -215,7 +239,7 @@ intrinsic 'eq'(x::DecAlgElt, y::DecAlgElt) -> BoolElt
     Returns whether x equals y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic 'in'(x::DecAlgElt, A::DecAlg) -> BoolElt
@@ -223,7 +247,7 @@ intrinsic 'in'(x::DecAlgElt, A::DecAlg) -> BoolElt
     Returns whether x is in A.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic Hash(x::DecAlgElt) -> RngIntElt
@@ -231,7 +255,7 @@ intrinsic Hash(x::DecAlgElt) -> RngIntElt
     Returns the hash value for x.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 // Should we also/instead define elementtosequence?
@@ -240,7 +264,7 @@ intrinsic Eltseq(x::DecAlgElt) -> SeqEnum
     Returns the elements of x as a sequence.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic IsZero(x::DecAlgElt) -> BoolElt
@@ -248,7 +272,7 @@ intrinsic IsZero(x::DecAlgElt) -> BoolElt
     Returns whether x is the zero element.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic IsIdentity(x::DecAlgElt) -> BoolElt
@@ -256,7 +280,7 @@ intrinsic IsIdentity(x::DecAlgElt) -> BoolElt
     Returns whether x is an identity for the algebra.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic IsNilpotent(x::DecAlgElt) -> BoolElt
@@ -264,7 +288,7 @@ intrinsic IsNilpotent(x::DecAlgElt) -> BoolElt
     Returns whether x is nilpotent.
   }
   // NOT YET IMPLEMENTED
-  return Null
+  // return Null;
 end intrinsic;
 
 intrinsic IsIdempotent(x::DecAlgElt) -> BoolElt
@@ -272,18 +296,19 @@ intrinsic IsIdempotent(x::DecAlgElt) -> BoolElt
     Returns whether x is idempotent.
   }
   // NOT YET IMPLEMENTED
-  return Null
+  // return Null;
 end intrinsic;
-
 /*
- * Operations for the elements
- */
+
+======= Operations for the elements =======
+
+*/
 intrinsic '-'(x::DecAlgElt) -> DecAlgElt
   {
     Returns the negation of x.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic '+'(x::DecAlgElt, y::DecAlgElt) -> DecAlgElt
@@ -291,7 +316,7 @@ intrinsic '+'(x::DecAlgElt, y::DecAlgElt) -> DecAlgElt
     Returns the sum of x and y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic '-'(x::DecAlgElt, y::DecAlgElt) -> DecAlgElt
@@ -299,7 +324,7 @@ intrinsic '-'(x::DecAlgElt, y::DecAlgElt) -> DecAlgElt
     Returns the difference of x and y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic '*'(x::DecAlgElt, y::DecAlgElt) -> DecAlgElt
@@ -307,7 +332,7 @@ intrinsic '*'(x::DecAlgElt, y::DecAlgElt) -> DecAlgElt
     Returns the product of x and y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic '*'(x::DecAlgElt, y::RngElt) -> DecAlgElt
@@ -315,7 +340,7 @@ intrinsic '*'(x::DecAlgElt, y::RngElt) -> DecAlgElt
     Returns the scalar product of x and y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic '*'(x::RngElt, y::DecAlgElt) -> DecAlgElt
@@ -323,7 +348,7 @@ intrinsic '*'(x::RngElt, y::DecAlgElt) -> DecAlgElt
     Returns the scalar product of x and y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic '/'(x::DecAlgElt, y::RngElt) -> DecAlgElt
@@ -331,7 +356,7 @@ intrinsic '/'(x::DecAlgElt, y::RngElt) -> DecAlgElt
     Returns the scalar division of x by y.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic '*'(x::DecAlgElt, g::GrpElt) -> DecAlgElt
@@ -339,26 +364,25 @@ intrinsic '*'(x::DecAlgElt, g::GrpElt) -> DecAlgElt
     Returns the image of x under the action of g.
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
-
 /*
- * Dec functions and operations
- */
+
+======= Dec functions and operations =======
+
+*/
 intrinsic Parent(D::Dec) -> .
   {
     Returns the algebra for which D is a decomposition.
   }
-  // NOT YET IMPLEMENTED
-  return Null;
+  return D`parent;
 end intrinsic;
 
 intrinsic FusionLaw(D::Dec) -> FusLaw
   {
     Returns the fusion law for D.
   }
-  // NOT YET IMPLEMENTED
-  return Null;
+  return D`fusion_law;
 end intrinsic;
 
 // Can we implement the following using [] notation
@@ -366,8 +390,7 @@ intrinsic Part(D::Dec, x::FusLawElt) -> ModTupRng
   {
     Returns the part of D for the fusion law element x.
   }
-  // NOT YET IMPLMENTED
-  return Null;
+  return D`parts[x];
 end intrinsic;
 
 intrinsic MiyamotoElement(D::Dec, x::AlgChtrElt) -> GrpElt
@@ -375,15 +398,14 @@ intrinsic MiyamotoElement(D::Dec, x::AlgChtrElt) -> GrpElt
     Returns the Miyamoto element for character x.
   }
   // NOT YET IMPLMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic DecompositionSubgroup(D::Dec) -> Grp
   {
     Returns the full decomposition subgroup of D.
   }
-  // NOT YET IMPLMENTED
-  return Null;
+  return D`group;
 end intrinsic;
 
 intrinsic DecompositionSubgroup(D::Dec, Y::SetEnum[AlgChtrElt]) -> Grp
@@ -392,7 +414,7 @@ intrinsic DecompositionSubgroup(D::Dec, Y::SetEnum[AlgChtrElt]) -> Grp
     associated to the characters in Y.
   }
   // NOT YET IMPLMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic DecompositionSubgroup(D::Dec, Y::SeqEnum[AlgChtrElt]) -> Grp
@@ -401,7 +423,7 @@ intrinsic DecompositionSubgroup(D::Dec, Y::SeqEnum[AlgChtrElt]) -> Grp
     associated to the characters in Y.
   }
   // NOT YET IMPLMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic IsAxial(D::Dec) -> BoolElt
@@ -409,17 +431,19 @@ intrinsic IsAxial(D::Dec) -> BoolElt
     Returns if the decomposition is axial
   }
   // NOT YET IMPLEMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 /*
- * The following are axial versions inheriting the structures above
- */
+
+======= The following are axial versions inheriting the structures above =======
+
+*/
 //Probably the following declaration is wrong.
 //declare type AxlDecAlgElt, DecAlgElt;
 
-declare type AxlDecAlg[AxlDecAlgElt], DecAlg;
-declare type AxlDec, Dec;
+declare type AxlDecAlg[AxlDecAlgElt]: DecAlg;
+declare type AxlDec: Dec;
 
 /*
  * AxlDecAlg functions and operations
@@ -438,7 +462,7 @@ intrinsic Axis(D::AxlDec) -> .
     Returns the axis for D.
   }
   // NOT YET IMPLMENTED
-  return Null;
+  // return Null;
 end intrinsic;
 
 intrinsic Valuation(D::AxlDec) -> Map
@@ -446,5 +470,5 @@ intrinsic Valuation(D::AxlDec) -> Map
     Returns the valuation for D.
   }
   // NOT YET IMPLMENTED
-  return Null;
+  // return Null;
 end intrinsic;
