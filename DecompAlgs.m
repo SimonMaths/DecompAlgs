@@ -12,25 +12,22 @@
 declare type DecAlg[DecAlgElt];
 
 declare attributes DecAlg:
-  fusion_law,      // A FusLaw
-  decompositions,  // 
-  algebra,
-  Miyamoto_group,
-  Universal_Miyamoto_Group;
+  fusion_law,                // A FusLaw
+  decompositions,            // An Assoc of Decs
+  algebra,                   // The algebra
+  Miyamoto_group,            // 
+  universal_Miyamoto_group;  //
 
 declare attributes DecAlgElt:
-  parent,      // A FusLaw
-  elt;         // 
-
+  parent,                    // A FusLaw
+  elt;                       // 
 
 declare type Dec;
 
 declare attributes Dec:
-  parent,
-  fusion_law,
-  group,
-  parts;
-  
+  parent,                    // 
+  fusion_law,                //
+  parts;                     // An Assoc indexed by the elements of the fusion law
 
 /*
  * Additional utility functions
@@ -376,6 +373,13 @@ intrinsic Parent(D::Dec) -> .
     Returns the algebra for which D is a decomposition.
   }
   return D`parent;
+end intrinsic;
+
+intrinsic IsAttached(D::Dec) -> BoolElt
+  {
+  Is the decomposition attached to a decomposition algebra?
+  }
+  return ISA(Type(D`parent), DecAlg);
 end intrinsic;
 
 intrinsic FusionLaw(D::Dec) -> FusLaw
