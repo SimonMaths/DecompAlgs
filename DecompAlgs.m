@@ -108,6 +108,13 @@ intrinsic Algebra(A::DecAlg) -> Alg
   return A`algebra;
 end intrinsic;
 
+intrinsic VectorSpace(A::DecAlg) -> Alg
+  {
+    Returns the underlying algebra for A.
+  }
+  return VectorSpace(Algebra(A));
+end intrinsic;
+
 intrinsic Decompositions(A::DecAlg) -> Assoc//[Dec]
   {
     Returns the decompositions of A as an associative array.
@@ -128,6 +135,43 @@ intrinsic Decomposition(A::DecAlg, i::.) -> Dec
   }
   require i in IndexSet(A): "i does not index a decomposition.";
   return A`decompositions[i];
+end intrinsic;
+/*
+
+======= Creating DecAlgs =======
+
+*/
+intrinsic DecompositionAlgebra(A::ParAxlAlg) -> DecAlg
+  {
+  Creates a decomposition algebra from a partial axial algebra.
+  }
+  Anew := New(DecAlg);
+  Anew`fusion_law := FusionLaw(A`fusion_table);
+  Anew`algebra := Algebra<BaseRing(A), Dimension(A) | A`mult>;
+  
+  eigs := A`eigenvalues;
+  Gr, gr := Grading(A`fusion_table);
+  require Order(Gr) eq 2: "The grading group must be of order 2";
+  
+  keys := AssociativeArray();
+  keys["even"] := {@ e : e in eigs | e@gr eq G!1@};
+  keys["odd"] := {@ e : e in eigs | e@gr ne G!1@};
+
+  G := Group(A);
+  Vnew := VectorSpace(Anew);
+  
+  // We use a sequence, so there could be duplicate decompositions
+  decs := [];
+  for i in A`axes, g in G do
+    S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[k])]>
+              : attr in ["even", "odd"], k in keys[attr] @};
+    D := Decomposition(A, S);
+    Append(~decs, D);
+  end for;
+  
+  Anew`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs]*]);
+  
+  return Anew;
 end intrinsic;
 /*
 
@@ -436,6 +480,21 @@ intrinsic Part(D::Dec, x::FusLawElt) -> ModTupRng
   return D`parts[x];
 end intrinsic;
 
+intrinsic Decomposition(A::DecAlg, S::{@ModTupRng@}: labels := func<U|FusionLaw(A)!Position(S, U)>) -> Dec
+  {
+  Given a set of subspaces S of a decomposition algebra A, creates a Decompositon for A with respect to S.  Optional parameter of label gives the labeling of elements of S; the default is by order in S.
+  }
+  require IsIndependent(&cat[ Basis(U) : U in S]): "The subspaces given are not a direct sum.";
+  require &+S eq VectorSpace(Algebra(A)): "The subspaces given do not span A";
+  
+  D := New(Dec);
+  D`parent := A;
+  D`fusion_law := A`fusion_law;
+  D`parts := AssociativeArray([* < U@label, U> : U in S *]);
+  
+  return D;
+end intrinsic;
+
 intrinsic MiyamotoElement(D::Dec, x::AlgChtrElt) -> GrpElt
   {
     Returns the Miyamoto element for character x.
@@ -508,6 +567,39 @@ intrinsic Print(A::AxlDecAlg)
   }
   printf "A %o-dimensional axial decomposition algebra with %o% decompositions", Dimension(A), #IndexSet(A);
 end intrinsic;
+
+intrinsic AxialDecompositionAlgebra(A::ParAxlAlg) -> DecAlg
+  {
+  Creates an axial decomposition algebra from a partial axial algebra.
+  }
+  Anew := New(AxlDecAlg);
+  Anew`fusion_law := FusionLaw(A`fusion_table);
+  Anew`algebra := Algebra<BaseRing(A), Dimension(A) | A`mult>;
+  
+  eigs := A`eigenvalues;
+  Gr, gr := Grading(A`fusion_table);
+  require Order(Gr) eq 2: "The grading group must be of order 2";
+  
+  keys := AssociativeArray();
+  keys["even"] := {@ e : e in eigs | e@gr eq G!1@};
+  keys["odd"] := {@ e : e in eigs | e@gr ne G!1@};
+
+  G := Group(A);
+  Vnew := VectorSpace(Anew);
+  
+  // We use a sequence, so there could be duplicate decompositions
+  decs := [];
+  for i in A`axes, g in G do
+    S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[k])]>
+              : attr in ["even", "odd"], k in keys[attr] @};
+    D := AxialDecomposition(A, S, (A`axes[i]`id*g)`elt);
+    Append(~decs, D);
+  end for;
+  
+  Anew`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs]*]);
+  
+  return Anew;
+end intrinsic;
 /*
 
 ======= AxlDecAlgElt functions and operations =======
@@ -529,4 +621,22 @@ intrinsic Evaluation(D::AxlDec) -> Map
     Returns the evaluation for D.
   }
   return Evaluation(FusionLaw(D));
+end intrinsic;
+
+intrinsic AxialDecomposition(A::DecAlg, S::{@ModTupRng@}, axis::. : labels := func<U|FusionLaw(A)!Position(S, U)>) -> Dec
+  {
+  Given a set of subspaces S of a decomposition algebra A, creates a Decompositon for A with respect to S.  Optional parameter of label gives the labeling of elements of S; the default is by order in S.
+  }
+  require IsIndependent(&cat[ Basis(U) : U in S]): "The subspaces given are not a direct sum.";
+  require &+S eq VectorSpace(Algebra(A)): "The subspaces given do not span A";
+  so, ax:= IsCoercible(A, axis);
+  require so: "The axis is not coercible into the decomposition algebra";
+  
+  D := New(Dec);
+  D`parent := A;
+  D`fusion_law := A`fusion_law;
+  D`parts := AssociativeArray([* < U@label, U> : U in S *]);
+  D`axis := ax;
+  
+  return D;
 end intrinsic;
