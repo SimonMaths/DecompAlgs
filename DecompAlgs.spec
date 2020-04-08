@@ -1,5 +1,5 @@
 {
-  ../FusionLaws
+  FusionLaws
   {
     +FusionLaw.spec
   }

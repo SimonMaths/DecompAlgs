@@ -1,0 +1,3 @@
+[submodule "FusionLaws"]
+	path = FusionLaws
+	url = https://github.com/JustMaths/FusionLaws
