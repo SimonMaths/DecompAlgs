@@ -187,6 +187,7 @@ intrinsic IsIndependent(S::[DecAlgElt]) -> BoolElt
   {
   Given a sequence S of decomposition algebra elements, return whether they are linearly independent.
   }
+  A := Universe(S);
   return IsIndependent([ Algebra(A) | Eltseq(x) : x in S]);
 end intrinsic;
 
@@ -195,6 +196,7 @@ intrinsic ExtendBasis(S::[DecAlgElt], A::DecAlg) -> SeqEnum[DecAlgElt]
   {
   Extends S to a basis of the decomposition algebra A.
   }
+  A := Universe(S);
   require IsIndependent(S): "The sequence of elements given is not linearly independent.";
   return ChangeUniverse(ExtendBasis([ Algebra(A) | Eltseq(x) : x in S], Algebra(A)), A);
 end intrinsic;
