@@ -29,6 +29,7 @@ declare attributes Dec:
   fusion_law,                // A Fuslaw
   parts;                     // An Assoc indexed by the elements of the fusion law
 
+forward CreateElement; // This is defined half-way down the file, but we want to use it first.
 /*
 
 ======= Additional utility functions =======
@@ -50,7 +51,7 @@ intrinsic Print(A::DecAlg)
   {
   Prints a partial axial algebra.
   }
-  printf "A %o-dimensional decomposition algebra with %o% decompositions", Dimension(A), #IndexSet(A);
+  printf "A %o-dimensional decomposition algebra with %o decompositions", Dimension(A), #IndexSet(A);
 end intrinsic;
 
 
@@ -63,35 +64,35 @@ intrinsic CoefficientRing(A::DecAlg) -> Rng
   {
   The coefficient ring (or base ring) of the algebra.
   }
-  return BaseRing(A`algebra);
+  return BaseRing(A);
 end intrinsic;
 
 intrinsic CoefficientField(A::DecAlg) -> Rng
   {
   "
   }
-  return CoefficientRing(A);
+  return BaseRing(A);
 end intrinsic;
 
 intrinsic BaseRing(A::DecAlg) -> Rng
   {
   "
   }
-  return CoefficientRing(A);
+  return BaseRing(Algebra(A));
 end intrinsic;
 
 intrinsic BaseField(A::DecAlg) -> Rng
   {
   "
   }
-  return CoefficientRing(A);
+  return BaseRing(A);
 end intrinsic;
 
 intrinsic Dimension(A::DecAlg) -> RngIntElt
   {
   Dimension of the algebra.
   }
-  return Dimension(A`algebra);
+  return Dimension(Algebra(A));
 end intrinsic;
 
 intrinsic FusionLaw(A::DecAlg) -> FusLaw
@@ -115,7 +116,7 @@ intrinsic VectorSpace(A::DecAlg) -> Alg
   return VectorSpace(Algebra(A));
 end intrinsic;
 
-intrinsic Decompositions(A::DecAlg) -> Assoc//[Dec]
+intrinsic Decompositions(A::DecAlg) -> Assoc
   {
     Returns the decompositions of A as an associative array.
   }
@@ -138,6 +139,26 @@ intrinsic Decomposition(A::DecAlg, i::.) -> Dec
 end intrinsic;
 /*
 
+======= Functions on a subalgebra =======
+
+*/
+intrinsic Hash(A::DecAlg) -> RngIntElt
+  {
+  Returns the hash value for A.
+  }
+  return Hash(<Algebra(A), Decompositions(A)>);
+end intrinsic;
+
+intrinsic 'eq'(A::DecAlg, B::DecAlg) -> BoolElt
+  {
+  Returns whether A equals B.
+  }
+  return Algebra(A) eq Algebra(B) and Decompositions(A) eq Decompositions(B);
+  // NB, this checks the fusion law too as the keys of the decomposition are FusLawElts.
+end intrinsic;
+
+/*
+
 ======= Creating DecAlgs =======
 
 */
@@ -149,24 +170,28 @@ intrinsic DecompositionAlgebra(A::ParAxlAlg) -> DecAlg
   Anew`fusion_law := FusionLaw(A`fusion_table);
   Anew`algebra := Algebra<BaseRing(A), Dimension(A) | A`mult>;
   
-  eigs := A`eigenvalues;
+  eigs := A`fusion_table`eigenvalues;
   Gr, gr := Grading(A`fusion_table);
   require Order(Gr) eq 2: "The grading group must be of order 2";
   
   keys := AssociativeArray();
-  keys["even"] := {@ e : e in eigs | e@gr eq G!1@};
-  keys["odd"] := {@ e : e in eigs | e@gr ne G!1@};
+  keys["even"] := {@ e : e in eigs | e@gr eq Gr!1@};
+  keys["odd"] := {@ e : e in eigs | e@gr ne Gr!1@};
 
   G := Group(A);
   Vnew := VectorSpace(Anew);
   
   // We use a sequence, so there could be duplicate decompositions
-  decs := [];
-  for i in A`axes, g in G do
-    S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[k])]>
-              : attr in ["even", "odd"], k in keys[attr] @};
-    D := Decomposition(A, S);
-    Append(~decs, D);
+  decs := [**];
+  for i in [1..#A`axes] do
+    H := A`axes[i]`stab;
+    trans := Transversal(G, H);
+    for g in trans do
+      S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[{@k@}])]>
+                : k in keys[attr], attr in ["even", "odd"] @};
+      D := Decomposition(Anew, S, (A`axes[i]`id*g)`elt);
+      Append(~decs, D);
+    end for;
   end for;
   
   Anew`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs]*]);
@@ -182,7 +207,7 @@ intrinsic Zero(A::DecAlg) -> DecAlgElt
   {
   Creates the zero element of A.
   }
-  return CreateElement(A, Zero(A`algebra));
+  return CreateElement(A, Zero(Algebra(A)));
 end intrinsic;
 
 intrinsic HasOne(A::DecAlg) -> BoolElt, DecAlgElt
@@ -296,9 +321,9 @@ intrinsic IsCoercible(A::DecAlg, x::.) -> BoolElt, .
   {
   Returns whether x is coercible into A and the result if so.
   }
-  if x eq 0 then
+  if Type(x) eq RngIntElt and x eq 0 then
     return true, Zero(A);
-  elif x eq 1 then
+  elif Type(x) eq RngIntElt and x eq 1 then
     so, A1 := HasOne(A);
     if so then
       return so, A1;
@@ -306,6 +331,8 @@ intrinsic IsCoercible(A::DecAlg, x::.) -> BoolElt, .
   elif ISA(Type(x), DecAlgElt) and x`parent eq A then
     return true, x;
   elif ISA(Type(x), AlgElt) and x in Algebra(A) then
+    return true, CreateElement(A, x);
+  elif ISA(Type(x), ModTupFldElt) and x in VectorSpace(A) then
     return true, CreateElement(A, x);
   // More to add here!!
   end if;
@@ -431,8 +458,7 @@ intrinsic IsNilpotent(x::DecAlgElt) -> BoolElt, RngIntElt
   {
     Returns whether x is nilpotent.  That is, if x^n = 0 for some n \geq 0.  If true, also returns the minimal such n.
   }
-  so, n := IsNilpotent(x`elt);
-  return so, n;
+  return IsNilpotent(x`elt);
 end intrinsic;
 
 intrinsic IsIdempotent(x::DecAlgElt) -> BoolElt
@@ -451,6 +477,20 @@ end intrinsic;
 ======= Dec functions and operations =======
 
 */
+intrinsic Hash(D::Dec) -> RngIntElt
+  {
+  Returns the hash value for D.
+  }
+  return Hash(D`parts);
+end intrinsic;
+
+intrinsic 'eq'(D1::Dec, D2::Dec) -> BoolElt
+  {
+  Returns whether D1 equals D2.
+  }
+  return D1`parts eq D2`parts;
+end intrinsic;
+
 intrinsic Parent(D::Dec) -> .
   {
     Returns the algebra for which D is a decomposition.
@@ -490,7 +530,7 @@ intrinsic Decomposition(A::DecAlg, S::{@ModTupRng@}: labels := func<U|FusionLaw(
   D := New(Dec);
   D`parent := A;
   D`fusion_law := A`fusion_law;
-  D`parts := AssociativeArray([* < U@label, U> : U in S *]);
+  D`parts := AssociativeArray([* < U@labels, U> : U in S *]);
   
   return D;
 end intrinsic;
@@ -565,7 +605,14 @@ intrinsic Print(A::AxlDecAlg)
   {
   Prints a partial axial algebra.
   }
-  printf "A %o-dimensional axial decomposition algebra with %o% decompositions", Dimension(A), #IndexSet(A);
+  printf "A %o-dimensional axial decomposition algebra with %o decompositions", Dimension(A), #IndexSet(A);
+end intrinsic;
+
+intrinsic Axes(A::AxlDecAlg) -> SetIndx[AxlDecAlgElt]
+  {
+    Returns the set of axes for A.
+  }
+  return {@ Axis(Decomposition(A, k)) : k in IndexSet(A)@};
 end intrinsic;
 
 intrinsic AxialDecompositionAlgebra(A::ParAxlAlg) -> DecAlg
@@ -576,24 +623,28 @@ intrinsic AxialDecompositionAlgebra(A::ParAxlAlg) -> DecAlg
   Anew`fusion_law := FusionLaw(A`fusion_table);
   Anew`algebra := Algebra<BaseRing(A), Dimension(A) | A`mult>;
   
-  eigs := A`eigenvalues;
+  eigs := A`fusion_table`eigenvalues;
   Gr, gr := Grading(A`fusion_table);
   require Order(Gr) eq 2: "The grading group must be of order 2";
   
   keys := AssociativeArray();
-  keys["even"] := {@ e : e in eigs | e@gr eq G!1@};
-  keys["odd"] := {@ e : e in eigs | e@gr ne G!1@};
+  keys["even"] := {@ e : e in eigs | e@gr eq Gr!1@};
+  keys["odd"] := {@ e : e in eigs | e@gr ne Gr!1@};
 
   G := Group(A);
   Vnew := VectorSpace(Anew);
   
   // We use a sequence, so there could be duplicate decompositions
-  decs := [];
-  for i in A`axes, g in G do
-    S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[k])]>
-              : attr in ["even", "odd"], k in keys[attr] @};
-    D := AxialDecomposition(A, S, (A`axes[i]`id*g)`elt);
-    Append(~decs, D);
+  decs := [**];
+  for i in [1..#A`axes] do
+    H := A`axes[i]`stab;
+    trans := Transversal(G, H);
+    for g in trans do
+      S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[{@k@}])]>
+                : k in keys[attr], attr in ["even", "odd"] @};
+      D := AxialDecomposition(Anew, S, (A`axes[i]`id*g)`elt);
+      Append(~decs, D);
+    end for;
   end for;
   
   Anew`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs]*]);
@@ -632,10 +683,10 @@ intrinsic AxialDecomposition(A::DecAlg, S::{@ModTupRng@}, axis::. : labels := fu
   so, ax:= IsCoercible(A, axis);
   require so: "The axis is not coercible into the decomposition algebra";
   
-  D := New(Dec);
+  D := New(AxlDec);
   D`parent := A;
   D`fusion_law := A`fusion_law;
-  D`parts := AssociativeArray([* < U@label, U> : U in S *]);
+  D`parts := AssociativeArray([* < U@labels, U> : U in S *]);
   D`axis := ax;
   
   return D;
