@@ -5,5 +5,4 @@
   }
   DecompAlgs.m
   DecompAlgs_group.m
-  Utilities.m
 }
