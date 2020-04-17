@@ -137,6 +137,7 @@ intrinsic Decomposition(A::DecAlg, i::.) -> Dec
   require i in IndexSet(A): "i does not index a decomposition.";
   return A`decompositions[i];
 end intrinsic;
+
 /*
 
 ======= Functions on a subalgebra =======
@@ -189,7 +190,7 @@ intrinsic DecompositionAlgebra(A::ParAxlAlg) -> DecAlg
     for g in trans do
       S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[{@k@}])]>
                 : k in keys[attr], attr in ["even", "odd"] @};
-      D := Decomposition(Anew, S, (A`axes[i]`id*g)`elt);
+      D := Decomposition(Anew, S);
       Append(~decs, D);
     end for;
   end for;
@@ -476,7 +477,15 @@ end intrinsic;
 
 ======= Dec functions and operations =======
 
-*/
+"*/
+intrinsic Print(D::Dec)
+  {
+  Prints a decomposition.
+  }
+  printf "Decomposition of a %o-dimensional algebra into %o parts", 
+      Dimension(Parent(D)), NumberOfParts(D);
+end intrinsic;
+
 intrinsic Hash(D::Dec) -> RngIntElt
   {
   Returns the hash value for D.
@@ -519,6 +528,34 @@ intrinsic Part(D::Dec, x::FusLawElt) -> ModTupRng
   }
   return D`parts[x];
 end intrinsic;
+
+intrinsic NumberOfParts(D::Dec) -> RngIntElt
+  {
+    Returns the number of parts in decomposition D.
+  }
+  return #D`parts;
+end intrinsic;
+intrinsic Nparts(D::Dec) -> RngIntElt
+  {
+  "
+  }
+  return NumberOfParts(D);
+end intrinsic;
+
+intrinsic Label(D::Dec) -> .
+  {
+    Returns the label of an attached decomposition D.
+  }
+  error if not IsAttached(D), "D is not attached.";
+  P := Parent(D);
+  for l in IndexSet(P) do
+    if D eq Decomposition(P, l) then
+      return l;
+    end if;
+  end for; 
+  error "Cannot find label for D.";
+end intrinsic;
+
 
 intrinsic Decomposition(A::DecAlg, S::{@ModTupRng@}: labels := func<U|FusionLaw(A)!Position(S, U)>) -> Dec
   {
