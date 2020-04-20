@@ -482,8 +482,9 @@ intrinsic Print(D::Dec)
   {
   Prints a decomposition.
   }
-  printf "Decomposition of a %o-dimensional algebra into %o parts", 
-      Dimension(Parent(D)), NumberOfParts(D);
+  printf "Decomposition of a %o-dimensional algebra into %o parts: %o", 
+    Dimension(Parent(D)), NumberOfParts(D), 
+    [ Dimension(Part(D,i)) : i in Elements(FusionLaw(D)) ];
 end intrinsic;
 
 intrinsic Hash(D::Dec) -> RngIntElt
@@ -526,7 +527,17 @@ intrinsic Part(D::Dec, x::FusLawElt) -> ModTupRng
   {
     Returns the part of D for the fusion law element x.
   }
+  if not IsDefined(D`parts, x) then
+    D`parts[x] := sub<VectorSpace(Parent(D))|>;
+  end if;
   return D`parts[x];
+end intrinsic;
+
+intrinsic Part(D::Dec, X::SetIndx[FusLawElt]) -> ModTupRng
+  {
+    Return the sum of parts of D for the fusion law elements in X.
+  }
+  return &+[ Part(D,x) : x in X ];
 end intrinsic;
 
 intrinsic NumberOfParts(D::Dec) -> RngIntElt
