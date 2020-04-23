@@ -15,8 +15,12 @@ declare attributes DecAlg:
   fusion_law,                // A FusLaw
   decompositions,            // An Assoc of Decs
   algebra,                   // The algebra
-  Miyamoto_group,            // 
-  universal_Miyamoto_group;  //
+  Miyamoto_group,            // The Miyamoto group
+  Miyamoto_map,              // Miy -> Matrices
+  universal_Miyamoto_group,  // Universal Miyamoto group
+  universal_projection,      // surjection; UMiy -> Miy
+  chargroup,                 // The character group of A
+  charmap;                   // the map chargroup -> [hom: grading -> R*]
 
 declare attributes DecAlgElt:
   parent,                    // A FusLaw
@@ -54,6 +58,40 @@ intrinsic Print(A::DecAlg)
   printf "A %o-dimensional decomposition algebra with %o decompositions", Dimension(A), #IndexSet(A);
 end intrinsic;
 
+intrinsic RemoveDecomposition(~A::DecAlg, i::.)
+  {
+    Removes decomposition i from A.
+  }
+  Remove(~(A`decompositions), i);
+end intrinsic;
+
+intrinsic RemoveDecomposition(A::DecAlg, i::.) -> DecAlg
+  {
+    Removes decomposition i from A.
+  }
+  A := StandardCopy(A);
+  Remove(~(A`decompositions), i);
+end intrinsic;
+
+intrinsic RemoveDecompositions(~A::DecAlg, I::.)
+  {
+    Removes the decompositions in I from A.
+  }
+  for i in I do
+    RemoveDecomposition(~A, i);
+  end for;
+end intrinsic;
+
+intrinsic RemoveDecompositions(A::DecAlg, I::.) -> DecAlg
+  {
+    Removes the decompositions in I from A.
+  }
+  A := StandardCopy(A);
+  for i in I do
+    RemoveDecomposition(~A, i);
+  end for;
+  return A;
+end intrinsic;
 
 /*
 
@@ -130,14 +168,6 @@ intrinsic IndexSet(A::DecAlg) -> Set
   return Keys(A`decompositions);
 end intrinsic;
 
-intrinsic Decomposition(A::DecAlg, i::.) -> Dec
-  {
-    Returns the decomposition of A labeled by i.
-  }
-  require i in IndexSet(A): "i does not index a decomposition.";
-  return A`decompositions[i];
-end intrinsic;
-
 /*
 
 ======= Functions on a subalgebra =======
@@ -163,6 +193,27 @@ end intrinsic;
 ======= Creating DecAlgs =======
 
 */
+intrinsic StandardCopy(A::DecAlg) -> DecAlg
+  {
+    Create a copy of A with decompositions index by the integers.
+  }
+  Anew := New(DecAlg);
+  fus := FusionLaw(A); Anew`fusion_law := fus;
+  alg := Algebra(A); Anew`algebra := alg;
+  vs := VectorSpace(Anew);
+  bases := Reverse(Sort([ [ Basis(Part(Decompositions(A)[i], x)) : 
+               x in Elements(fus) ] : i in IndexSet(A) ]));
+  decs := AssociativeArray();
+  for i in [1..#bases] do
+    basis := bases[i];
+    parts := {@ sub<vs| b> : b in basis @};
+    Dnew := Decomposition(Anew, parts);
+    decs[i] := Dnew;
+  end for;
+  Anew`decompositions := decs;
+  return Anew;
+end intrinsic;
+
 intrinsic DecompositionAlgebra(A::ParAxlAlg) -> DecAlg
   {
   Creates a decomposition algebra from a partial axial algebra.
@@ -199,6 +250,7 @@ intrinsic DecompositionAlgebra(A::ParAxlAlg) -> DecAlg
   
   return Anew;
 end intrinsic;
+
 /*
 
 ======= Creating specific elements =======
@@ -335,10 +387,14 @@ intrinsic IsCoercible(A::DecAlg, x::.) -> BoolElt, .
     return true, CreateElement(A, x);
   elif ISA(Type(x), ModTupFldElt) and x in VectorSpace(A) then
     return true, CreateElement(A, x);
+  elif ISA(Type(x), SeqEnum) then
+    ae := Algebra(A)!x;
+    return true, CreateElement(A, x);
   // More to add here!!
   end if;
   return false, "Illegal coercion.";
 end intrinsic;
+
 /*
 
 ======= Operations on the elements =======
@@ -400,13 +456,20 @@ intrinsic '/'(x::DecAlgElt, r::RngElt) -> DecAlgElt
   require so: "The scalar is not invertible.";
   return CreateElement(Parent(x), rinv*x`elt);
 end intrinsic;
-
+ 
 intrinsic '*'(x::DecAlgElt, g::GrpElt) -> DecAlgElt
   {
     Returns the image of x under the action of g.
   }
-  // NOT YET IMPLEMENTED
-  // return Null;
+  A := Parent(x);
+  if Parent(g) eq UniversalMiyamotoGroup(A) then
+    g := A`universal_projection(g);
+  end if;
+  if Parent(g) eq MiyamotoGroup(A) then
+    mtrx := MiyamotoAction(A, g);
+    return A!(Vector(Eltseq(x))*Matrix(mtrx));
+  end if;
+  error "%o is not in the (Universal) Miyamoto group.";
 end intrinsic;
 /*
 
