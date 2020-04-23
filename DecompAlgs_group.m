@@ -147,7 +147,6 @@ intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg
   return A;
 end intrinsic;
 
-
 intrinsic UniversalMiyamotoGroup(A::DecAlg) -> Grp, HomGrp
   { 
     Returns the Universal Miyamoto group of A for the subgroup H of the 
