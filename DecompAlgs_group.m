@@ -3,13 +3,15 @@
 Functions for finding the Miyamoto group associated to a decomposition algebra
 
 */
+
+declare verbose DecompAlgsGrp, 1; 
+
 /*
-
-
 
 ======= Functions for finding a group =======
 
 */
+
 intrinsic CharacterGroup(G::Grp, R::Rng) -> Grp, Map
   {
     Return the abelian group Z isomorphic to the group of homomorphisms G -> R* 
@@ -49,9 +51,19 @@ function miy_matrix(A,i,x);
 end function;
 
 function matgrp_to_permgrp(MG);
-  FP, fp := FPGroup(MG);
-  PG, pg := PermutationGroup(FP);
-  return PG, hom< PG -> MG | [ PG.i@@pg@fp : i in [1..Ngens(PG)] ] >;
+  vprintf DecompAlgsGrp: "    Calculating FP group... [";
+  FP, FPToMG := FPGroup(MG);
+  vprintf DecompAlgsGrp: "done]\n";
+  vprintf DecompAlgsGrp: "    Reducing generators... [";
+  Red, FPToRed := ReduceGenerators(FP);
+  vprintf DecompAlgsGrp: "done]\n";
+  vprintf DecompAlgsGrp: "    Calculating permutation group... [";
+  PG, RedToPG := PermutationGroup(Red);
+  vprintf DecompAlgsGrp: "done]\n";
+  vprintf DecompAlgsGrp: "    Building hom... [";
+  hm := hom< PG -> MG | [ PG.i@@RedToPG@@FPToRed@FPToMG : i in [1..Ngens(PG)] ] >;
+  vprintf DecompAlgsGrp: "done]\n";
+  return PG, hm;
 end function;
 
 intrinsic MiyamotoGroup(A::DecAlg) -> Grp
@@ -59,10 +71,67 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
     Returns the full Miyamoto group for A.
   }
   if not assigned A`Miyamoto_group then
+    sym := Sym(IndexSet(A));
     CG, cg := CharacterGroup(A);
-    GLN := GL(Dimension(A), BaseRing(A));
-    M := sub<GLN | [ miy_matrix(A,i,cg(x)) : i in IndexSet(A), x in CG  ] >;
-    A`Miyamoto_group, A`Miyamoto_map :=  matgrp_to_permgrp(M);
+    IS := GSet(sym);
+    vprintf DecompAlgsGrp: "    Calculating matrices... [";
+    mats := {};
+    pdec := 0;
+    cnt := 0;
+    dd := (#IS * #CG) div 10;
+    for i in IS do
+      for x in CG do
+        mat := miy_matrix(A,i,cg(x));
+        Include(~mats, mat);
+        cnt +:= 1;
+        if pdec ne cnt div dd then
+          vprintf DecompAlgsGrp: "%o", pdec;
+          pdec := cnt div dd;
+        end if;
+      end for;
+    end for;
+    vprintf DecompAlgsGrp: "]\n";
+    vprintf DecompAlgsGrp: "    Calculating matrix group... ";
+    n := Dimension(A);
+    R := BaseRing(A);
+    GLN := GL(n,R);
+    M := sub<GLN | mats >;
+    vprintf DecompAlgsGrp: "done]\n";
+    vprintf DecompAlgsGrp: "    Reducing generators... [";
+    smallgens := [];
+    smallM := sub<M|>;
+    for i in [1..Ngens(M)] do
+      if M.i notin smallM then
+        Append(~smallgens, M.i);
+        smallM := sub<M|smallgens>;
+      end if;
+    end for;
+    vprintf DecompAlgsGrp: "done]\n";
+    vprintf DecompAlgsGrp: "    Calculating hom to perm group... [";
+    X := Elements(FusionLaw(A));
+    Ds := [* Decompositions(A)[i] : i in IS *];
+    DVS := [ [ Part(D,x) : x in X ] : D in Ds ];
+    OriginalBases := [ [ Basis(VS) : VS in DVSi ]:DVSi in DVS ];
+    mattoperm := AssociativeArray();
+    for gen in [1..Ngens(smallM)] do
+      mat := smallM.gen;
+      DVSM := [ [ P*mat : P in Ps ] : Ps in DVS ];
+      NewBases := [ [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM ];
+      isit, perm := IsPermutation(OriginalBases, NewBases);
+      require isit: "A is not Miyamoto closed.";
+      mattoperm[mat] := sym!perm;
+    end for;
+    smallMtoP := hom< smallM -> Parent(mattoperm[Rep(Keys(mattoperm))]) |
+                [ mattoperm[smallM.i] : i in [1..Ngens(smallM)] ] >;
+    vprintf DecompAlgsGrp: "done]\n";
+    if IsTrivial(Kernel(smallMtoP)) then
+      im := Image(smallMtoP);
+      mp := hom< im -> smallM | [ smallM.i : i in [1..Ngens(smallM)] ] >;
+      A`Miyamoto_group := im;
+      A`Miyamoto_map := mp;
+    else
+      A`Miyamoto_group, A`Miyamoto_map :=  matgrp_to_permgrp(smallM);
+    end if;
   end if;
   return A`Miyamoto_group;
 end intrinsic;
@@ -84,6 +153,25 @@ intrinsic MiyamotoElement(A::DecAlg, i::., x::GrpElt) -> GrpElt
   CG, cg := CharacterGroup(A);
   mtrx := miy_matrix(A, i, cg(x));
   return mtrx@@A`Miyamoto_map;
+end intrinsic;
+
+intrinsic MiyamotoPermutation(A::DecAlg, i::., x::GrpElt) -> GrpElt
+  {
+    perm;
+  }
+  sym := Sym(IndexSet(A));
+  CG, cg := CharacterGroup(A);
+  IS := GSet(sym);
+  X := Elements(FusionLaw(A));
+  Ds := [* Decompositions(A)[i] : i in IS *];
+  DVS := [ [ Part(D,x) : x in X ] : D in Ds ];
+  OriginalBases := [ [ Basis(VS) : VS in DVSi ]:DVSi in DVS ];
+  M := MiyamotoAction(A, MiyamotoElement(A, i, x));
+  DVSM := [ [ P*M : P in Ps ] : Ps in DVS ];
+  NewBases := [ [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM ];
+  isit, perm := IsPermutation(OriginalBases, NewBases);
+  require isit: "A is not Miyamoto closed with respect to given element.";
+  return sym!perm;
 end intrinsic;
 
 intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt
@@ -153,9 +241,9 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg: Checkclosed:= true) -> Grp, HomGrp
   end if;
   CG, cg := CharacterGroup(A);
   if Checkclosed then
-    printf "Checking Miyamoto closed... [";
-    error if not IsMiyamotoClosed(A), "A is not Miyamoto closed.";
-    printf "done]\n";
+    vprintf DecompAlgsGrp: "    Checking Miyamoto closed... [";
+    require IsMiyamotoClosed(A): "A is not Miyamoto closed.";
+    vprintf DecompAlgsGrp: "done]\n";
   end if;
   IS := IndexedSet(IndexSet(A));
   FPG,FPGtoCG := FPGroup(CG);
@@ -165,7 +253,7 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg: Checkclosed:= true) -> Grp, HomGrp
   rels := {};
   MiyEls := AssociativeArray();
   MiyElVals := AssociativeArray();
-  printf "Generating Miyamoto elements... [";
+  vprintf DecompAlgsGrp: "    Generating Miyamoto elements... [";
   for i in [1..#IS] do
     for x in CG do
       mev := MiyamotoElement(A, IS[i], x);
@@ -176,9 +264,12 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg: Checkclosed:= true) -> Grp, HomGrp
       Include(~(MiyElVals[mev]), <i,x>);
     end for;
   end for;
-  printf "done]\n";
+  vprintf DecompAlgsGrp: "done]\n";
+  cnt := 0;
+  Tcnt := #Keys(MiyElVals);
   for mev in Keys(MiyElVals) do
-    printf "Calculating relations for %o... [", mev;
+    cnt +:= 1;
+    vprintf DecompAlgsGrp: "    Calculating relations for (%o/%o)... [", cnt, Tcnt;
     Rai := [ <j,k> : j in {1..#IS}, k in {1..#IS} | 
       forall{ x : x in CG | ab^-1*Mj*ab eq Mk 
         where ab is mev//MiyEls[<i, a>]
@@ -188,47 +279,29 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg: Checkclosed:= true) -> Grp, HomGrp
                                    where jj is x@@FPGtoCG@incs[jk[1]]
                                    where kk is x@@FPGtoCG@incs[jk[2]]
                  : jk in Rai, x in CG, ia in MiyElVals[mev] };
-    printf "done]\n";
+    vprintf DecompAlgsGrp: "done]\n";
   end for;
-  printf "Calculating quotient group... [";
+  vprintf DecompAlgsGrp: "    Calculating quotient group... [";
   Quo := quo<FreeProd|rels>;
   Red, QR := ReduceGenerators(Quo);
-  printf "done]\n";
-  printf "Calculating projection onto Miyamoto group... [";
+  vprintf DecompAlgsGrp: "done]\n";
+  vprintf DecompAlgsGrp: "    Calculating projection onto Miyamoto group... [";
   prjimg := [ MiyEls[<i, FPGtoCG(FPG.j)>] :
         i in [ 1+(k div Ngens(FPG)) ], j in [ 1+(k mod Ngens(FPG)) ],
         k in [0..Ngens(FreeProd)-1] ];
-  printf "1,";
+  vprintf DecompAlgsGrp: "0";
   Miy := MiyamotoGroup(A);
   prj := hom< Quo -> Miy | prjimg >;
-  printf "2]\n";
-  printf "Calculating permutation group... [";
+  vprintf DecompAlgsGrp: "done]\n";
+  vprintf DecompAlgsGrp: "    Calculating permutation group... [";
   UMiy, RedToUMiy := PermutationGroup(Red);
-  printf "done]\n";
+  vprintf DecompAlgsGrp: "done]\n";
   A`universal_Miyamoto_group := UMiy;
-  printf "Converting projection to permutation group... [";
+  vprintf DecompAlgsGrp: "    Converting projection to permutation group... [";
   A`universal_projection := hom< UMiy -> Miy | [ UMiy.i@@RedToUMiy@@QR@prj : 
                 i in [1..Ngens(UMiy)] ] >;
-  printf "done]\n";
+  vprintf DecompAlgsGrp: "done]\n";
   return A`universal_Miyamoto_group, A`universal_projection;
-end intrinsic;
-
-function DecCharPairs(A, a);
-  CG, cg := CharacterGroup(A);
-  IS := IndexedSet(IndexSet(A));
-  return [ <i,c> : i in IS, c in CG | MiyamotoElement(A,i,c) eq a ];
-end function;
-
-intrinsic UMiy(A::DecAlg) -> Grp
-  {
-    Version 2.
-  }
-  error if not IsMiyamotoClosed(A), "A is not Miyamoto closed.";
-  Miy := MiyamotoGroup(A);
-  for a in Miy do
-    a, DecCharPairs(A, a);
-  end for;
-  return CyclicGroup(1);
 end intrinsic;
 
 intrinsic MiyamotoGModule(A::DecAlg) -> ModGrp

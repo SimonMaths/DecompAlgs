@@ -9,10 +9,11 @@ intrinsic AxialAlgebra(name::MonStgElt) -> ParAxlAlg
   return LoadPartialAxialAlgebra("~/magma/AxialAlgebras/library/Monster_1,4_1,32/RationalField\(\)/basic_algebras/" cat name cat ".json");
 end intrinsic;
 
-intrinsic JordanAlgebra(n::RngIntElt, k::Fld) -> Alg
+intrinsic JordanAlgebra(n::RngIntElt, q::RngIntElt) -> Alg
   {
     Jordan algbera of n x n matrices over k.
   }
+  k := GF(q);
   error if Characteristic(k) eq 2, "Field must be have characteristic different 
     from 2.";
   M := MatrixAlgebra(k,n);
@@ -26,9 +27,9 @@ intrinsic PrimitiveIdempotentsOfJordanAlgebra(J::Alg) -> SetEnum
   }
   R := BaseRing(J);
   n := Integers()!Sqrt(Dimension(J));
-  ZO := ZeroMatrix(R, n, n);
-  ZO[1,1] := 1;
-  PI := { J!Eltseq(B*ZO*B^-1) : B in GL(n,R) };
+  VS := VectorSpace(R,n);
+  PI := { J!Eltseq(Transpose(Matrix(v))*Matrix(w)) : v in VS, w in VS | 
+          InnerProduct(v,w) eq 1 };
   return PI;
 end intrinsic;
 
@@ -40,13 +41,18 @@ intrinsic AdjointAction(a::AlgElt) -> Mtrx
   return Matrix([ Eltseq(a*b) : b in Basis(A) ]);
 end intrinsic;
 
-intrinsic JordanDecompositionAlgebra(n::RngIntElt, k::Fld) -> DecAlg
+intrinsic JordanDecompositionAlgebra(n::RngIntElt, q::RngIntElt) -> DecAlg
   {
     Return the decomposition Jordan decomposition algebra of n x n matrices over 
     k. 
   }
-  J := JordanAlgebra(n, k);
+  k := GF(q);
+  printf "Creating algebra... [";
+  J := JordanAlgebra(n, q);
+  printf "done]\n";
+  printf "Creating primitives... [";
   PI := PrimitiveIdempotentsOfJordanAlgebra(J);
+  printf "done]\n";
   A := New(DecAlg);
   half := (k!2)^-1;
   F := JordanFusionLaw(half);
@@ -55,11 +61,19 @@ intrinsic JordanDecompositionAlgebra(n::RngIntElt, k::Fld) -> DecAlg
   vs := VectorSpace(J);
   decs := AssociativeArray();
   cnt := 0;
+  printf "Building decompositions... [";
+  pdec := 0;
+  dd := #PI div 10;
   for a in PI do
     cnt +:= 1;
     parts := {@ sub<vs | Eigenspace(AdjointAction(a), l) > : l in [k | 1, 0, half ] @};
     decs[cnt] := Decomposition(A, parts);
+    if cnt div dd gt pdec then
+      printf "%o", pdec;
+      pdec := cnt div dd;
+    end if;
   end for;
+  printf "]\n";
   A`decompositions := decs;
   return A;
 end intrinsic;
