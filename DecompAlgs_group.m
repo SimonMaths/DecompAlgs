@@ -78,7 +78,7 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
     mats := {};
     pdec := 0;
     cnt := 0;
-    dd := (#IS * #CG) div 10;
+    dd := Max((#IS * #CG) div 10,1);
     for i in IS do
       for x in CG do
         mat := miy_matrix(A,i,cg(x));
@@ -118,18 +118,26 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
       DVSM := [ [ P*mat : P in Ps ] : Ps in DVS ];
       NewBases := [ [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM ];
       isit, perm := IsPermutation(OriginalBases, NewBases);
-      require isit: "A is not Miyamoto closed.";
-      mattoperm[mat] := sym!perm;
+      if not isit then
+        vprintf DecompAlgsGrp: "failed]\n";
+        A`Miyamoto_group, A`Miyamoto_map :=  matgrp_to_permgrp(smallM);
+        return A`Miyamoto_group;
+      end if;
+      mattoperm[mat] := sym!GSet(sym)[perm];
     end for;
-    smallMtoP := hom< smallM -> Parent(mattoperm[Rep(Keys(mattoperm))]) |
+    smallMtoP := hom< smallM -> sym |
                 [ mattoperm[smallM.i] : i in [1..Ngens(smallM)] ] >;
     vprintf DecompAlgsGrp: "done]\n";
     if IsTrivial(Kernel(smallMtoP)) then
+      vprintf DecompAlgsGrp: "    Calculating isomorphism to perm group of decomps... [";
       im := Image(smallMtoP);
       mp := hom< im -> smallM | [ smallM.i : i in [1..Ngens(smallM)] ] >;
       A`Miyamoto_group := im;
       A`Miyamoto_map := mp;
+      vprintf DecompAlgsGrp: "done]\n";
     else
+      vprintf DecompAlgsGrp: "    Map to perm group has non-trivial kernel: using standard techniques:\n";
+      return smallMtoP;
       A`Miyamoto_group, A`Miyamoto_map :=  matgrp_to_permgrp(smallM);
     end if;
   end if;
@@ -289,7 +297,6 @@ intrinsic UniversalMiyamotoGroup(A::DecAlg: Checkclosed:= true) -> Grp, HomGrp
   prjimg := [ MiyEls[<i, FPGtoCG(FPG.j)>] :
         i in [ 1+(k div Ngens(FPG)) ], j in [ 1+(k mod Ngens(FPG)) ],
         k in [0..Ngens(FreeProd)-1] ];
-  vprintf DecompAlgsGrp: "0";
   Miy := MiyamotoGroup(A);
   prj := hom< Quo -> Miy | prjimg >;
   vprintf DecompAlgsGrp: "done]\n";
