@@ -35,10 +35,17 @@ end intrinsic;
 
 intrinsic AdjointAction(a::AlgElt) -> Mtrx
   {
-    Matrix giving the adjoint action a*-: A -> A.
+    Matrix giving the adjoint action -*a: A -> A.
   }
   A := Parent(a);
-  return Matrix([ Eltseq(a*b) : b in Basis(A) ]);
+  M := Matrix([ Eltseq(b*a) : b in Basis(A) ]);
+  return M;
+end intrinsic;
+
+intrinsic AdjointAction(a::DecAlgElt) -> Mtrx
+  {
+  }
+  return AdjointAction(a`elt);
 end intrinsic;
 
 intrinsic JordanDecompositionAlgebra(n::RngIntElt, q::RngIntElt) -> DecAlg
@@ -531,6 +538,27 @@ end function;
 //  return &+incs,&+prjs;
 //end intrinsic;
 
+intrinsic IsIsomorphism(m::ModMatFldElt) -> Bool
+  {
+    return true if m is an isomorphism.
+  }
+  mat := Matrix(m);
+  zeromap := MapToMatrix(hom<Codomain(m) -> Domain(m) | 
+      [ 0 : i in [1..Dimension(Codomain(m))] ]>);
+  if Ncols(mat) ne Nrows(mat) then
+    return false, zeromap;
+  end if;
+  TF, inv := IsInvertible(mat);
+  if not TF then
+    return false, zeromap;
+  end if;
+  inv := MapToMatrix(hom<Codomain(m) -> Domain(m) | inv>);
+  if IsGHom(inv) then
+    return true, inv;
+  end if; 
+  return false, zeromap;
+end intrinsic;
+
 intrinsic Splitting(f::ModMatFldElt) -> ModMatFldElt
   {
     Given a surjections f: X -> Y return an injection g: Y -> X such that
@@ -546,6 +574,20 @@ intrinsic Splitting(f::ModMatFldElt) -> ModMatFldElt
   isit, g := IsIsomorphism(iC*f);
   require isit: "Cannot find splitting.";
   return g*iC;
+end intrinsic;
+
+intrinsic ExtendToTensorSquare(f::ModMatRngElt, M::ModTupRng) -> ModMatGrpElt
+  {
+    Extend the map f: S^2(M) -> X to a map from the tensor square of M to X.
+  }
+  d := Dimension(M);
+  S2 := Domain(f);
+  require Dimension(S2) eq d*(d+1) div 2: "Map must be from symmetric square.";
+  T2 := TensorProduct(M,M);
+  p2 := Matrix(BaseRing(M), Dimension(T2), Dimension(S2), 
+    [<idx,sym_pair_idx(d,ij),1> 
+      : ij in [tns_idx_pair(d,idx)], idx in [1..Dimension(T2)] ]);
+  return p2*f;
 end intrinsic;
 
 intrinsic MultiplicationsWithAssociatingForms(isom::ModMatGrpElt) 
@@ -639,5 +681,367 @@ intrinsic MultiplicationsWithAssociatingForms(M::ModGrp) -> ModMatFld
     "Must have a canonical (up to scaling) choice of isomorphism to Dual(M).";
   return MultiplicationsWithAssociatingForms(gh.1);
 end intrinsic;
-    
 
+intrinsic SplittingField(I::RngMPol) -> Fld
+  {
+    Splitting field for a variety of dimension 0.
+  }
+  error if Dimension(I) ne 0, "Ideal is not dimension 0.";
+  R := BaseRing(I);
+  P1 := Parent(I.1);
+  P2 := PolynomialRing(R);
+  nv := Ngens(P1);
+  for i in Reverse([1..nv]) do
+    mp := hom< P1 -> P2 | [ P2.1 : i in [1..nv] ] >;
+    pl := Basis(EliminationIdeal(I, {i..nv}))[1]@mp;
+    if not IsZero(pl) then
+      R := SplittingField(pl);
+      P1 := ChangeRing(P1, R);
+      P2 := ChangeRing(P2, R);
+      I := ChangeRing(I, R);
+    end if;
+  end for;
+  return R;
+end intrinsic;
+
+
+intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
+  idempotent := true, max_eigs:= 0) -> .
+  {
+  }
+  if max_eigs le 0 then
+    max_eigs := Dimension(X);
+  end if;
+  n := 0;
+  while true do
+    n +:= 1;
+    "Trying with",n,"eigenvalues.";
+    d := Dimension(X);
+    F := Field(X);
+    R := Restriction(X, H);
+    T := TrivialModule(H, F);
+    names := [];
+    varnum := 0;
+    axial_parts := [ X!R!Image(inc.i).1 : i in [1..Dimension(inc)], 
+                    inc in [ GHom(T,R) ] ];
+    nv := #axial_parts + #M + (n-1) ;
+    P := PolynomialRing(F, nv);
+    rels := [];
+    axis := &+[ P.i*Vector(P, axial_parts[i]) : i in [1..#axial_parts] ];
+    axvars := [1..#axial_parts];
+    names cat:= [ "axis_" cat IntegerToString(i) : i in [1..#axial_parts] ];
+    varnum +:= #axial_parts;
+    mult := &+[ P.(varnum+i)*ChangeRing(M[i],P) : i in [1..#M] ];
+    multvars := [(varnum+1)..(varnum+#M)];
+    names cat:= [ "mult_" cat IntegerToString(i) : i in [1..#M] ];
+    varnum +:= #M;
+    rels cat:= [ r : r in Eltseq(mult_with_map(axis,axis,mult)-axis) ];
+    adjnt := Matrix([ Eltseq(mult_with_map(axis, Parent(axis)!v, mult)) : 
+      v in Basis(X) ]);
+    idnty := Parent(adjnt)!1;
+    zerty := Parent(adjnt)!0;
+    zeromatrix := &*([ adjnt - (idempotent select idnty else zerty) ] cat 
+                     [ adjnt - P.(varnum+i)*idnty : i in [1..n-1] ]);
+    names cat:= [ "ev_" cat IntegerToString(i) : i in [1..n-1] ];
+    varnum +:= n-1;
+    rels cat:= Eltseq(zeromatrix);
+    AssignNames(~P, names);
+    I := ideal<P|rels>;
+    J := [ I + ideal<P|P.i-1, [P.j:j in [multvars[1]..i-1]]>
+            : i in multvars ];
+    J := &cat[ PrimaryDecomposition(j) : j in J ];
+    foundax := false;
+    mt_axs := [];
+    XX := X;
+    for I in J do 
+      if Dimension(I) eq 0 then
+        foundax := false;
+        mt_ax := AssociativeArray();
+        _ := GroebnerBasis(I);
+        Q := SplittingField(I);
+        splitI := ChangeRing(I, Q);
+        X := ChangeRing(XX, Q);
+        for pt in Variety(splitI) do
+          ax := X!(&+[ pt[i]*Vector(Q, axial_parts[i]) : i in [1..#axial_parts] ]);
+          if not IsZero(ax) then
+            mt := &+[ pt[i+#axial_parts]*Matrix(Q,M[i]) : i in [1..#M] ];
+            mt := MapToMatrix(hom<ChangeRing(Domain(Rep(M)),Q)->X|mt>);
+            if not mt in Keys(mt_ax) then
+              mt_ax[mt] := [];
+            end if;
+            if not ax in mt_ax[mt] then
+              foundax := true;
+              Append(~(mt_ax[mt]), ax);
+            end if;
+          end if;
+        end for;
+      end if;
+      if foundax then
+        Append(~mt_axs, mt_ax);
+      end if;
+    end for;
+
+    if #mt_axs gt 0 then 
+      decalgs := [**];
+      for ma in mt_axs do
+        for m in Keys(ma) do
+          for a in ma[m] do
+            A := AxialDecompositionAlgebra(m,a,H);
+            Append(~decalgs, A);
+          end for;
+        end for;
+      end for;
+      return decalgs;
+    else
+      require n lt max_eigs: "Cannot find axial multiplication.";
+    end if;
+  end while;
+end intrinsic;
+
+intrinsic IsotypicDecomposition(X::ModGrp) -> SeqEnum
+  {
+    Return the isotypic decomposition of X.
+  }
+  T := TrivialModule(Group(X), BaseRing(X));
+  D := DirectSumDecomposition(X);
+  _,ic := IsomorphismClasses([T] cat D);
+  return [ sub<X|D[c]> : c in [[i-1:i in x|i gt 1]], x in ic | #c gt 0 ];
+end intrinsic;
+
+intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp) -> .
+  {
+    Creates an axial decomposition algebra from a multiplication and list of
+    axes.
+  }
+  R := BaseRing(mult);
+  X := Codomain(mult);
+  G := Group(X);
+  A := New(AxlDecAlg);
+  alg :=  Algebra<R, Dimension(X) | [ [ Eltseq(mult_with_map(x,y,mult)) 
+                                     : y in Basis(X) ] : x in Basis(X) ] >;
+  A`algebra := alg;
+  V := VectorSpace(A);
+  RX := Restriction(X, H);
+  IC := IsotypicDecomposition(RX);
+  Vic := [ sub<V| [V!Eltseq(RX!b):b in Basis(ic)]> : ic in IC ];
+  decs := [**];
+
+  parts := AssociativeArray();
+  adjnt := AdjointAction(A`algebra!Eltseq(ax));
+
+  for evd in Eigenvalues(adjnt) do
+    ev := evd[1];
+    d := evd[2];
+    Ve := sub<V|Eigenspace(adjnt, ev)>;
+    bas := [];
+    for i in [1..#Vic] do
+      vic := Vic[i];
+      vevic := Ve meet vic;
+      if Dimension(vevic) gt 0 then
+        parts[<i,ev>] := Basis(vevic);
+        bas cat:= Basis(vevic);
+        d -:= Dimension(vevic);
+      end if;
+    end for;
+    if d gt 0 then
+      EB := ExtendBasis(bas, Ve);
+      parts[<0,ev>] := sub<Ve|EB[[#bas+1..#EB]]>;
+    end if;
+  end for;
+
+  keys := [ k : k in Keys(parts) ];
+  p1 := [ i : i in [1..#keys] | keys[i][2] eq 1 ];
+  p0 := [ i : i in [1..#keys] | keys[i][2] eq 0 ];
+  po := [ i : i in [1..#keys] | i notin p1 and i notin p0 ];
+  ps1 := [ k[1] : k in keys[p1] ];
+  ps0 := [ k[1] : k in keys[p0] ];
+  pso := [ k[1] : k in keys[po] ];
+  ParallelSort(~ps1, ~p1);
+  ParallelSort(~ps0, ~p0);
+  ParallelSort(~pso, ~po);
+  keys := keys[p1] cat keys[p0] cat keys[po];
+  basispart := [];
+  for i in [1..#keys] do
+    basispart cat:= [ i : b in parts[keys[i]] ];
+  end for; 
+
+  VSWB := VectorSpaceWithBasis(&cat[ parts[k] : k in keys ]);
+  FLA := AssociativeArray();
+  FLA["class"] := "Fusion law";
+  FLA["set"] := [1..#keys];
+  FLA["law"] := [ [ &join[ { basispart[i] : i in 
+      Support(Vector(Coordinates(VSWB,V!(alg!br*alg!bc)))) }
+      : bc in parts[c], br in parts[r] ] : c in keys ] : r in keys ];
+  FLA["evaluation"] := [ k[2] : k in keys ];
+  FL := FusionLaw(FLA);
+  A`fusion_law := FL;
+  
+  for t in Transversal(G,H) do
+    S := {@ sub<V | [ V!((X!b)*t) : b in parts[k] ] > : k in keys @};
+    D := AxialDecomposition(A, S, V!(ax*t)); 
+    Append(~decs, D);
+  end for;
+
+  A`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs] *]);
+
+  return A;
+end intrinsic; 
+
+intrinsic Multiplication(A::Alg) -> .
+  {
+    Multiplication represented as a linear map from the tensor product of A to
+    A.
+  }
+  V := VectorSpace(A);
+  d := Dimension(V);
+  T := TensorProduct(V,V);
+  M := Matrix(BaseRing(A), d*d, d, 
+    [ Eltseq(A.ij[1]*A.ij[2]) : ij in [tns_idx_pair(d,idx)], idx in [1..d*d] ]);
+  return M;
+end intrinsic; 
+
+/*
+
+  k := GF(q);
+  printf "Creating algebra... [";
+  J := JordanAlgebra(n, q);
+  printf "done]\n";
+  printf "Creating primitives... [";
+  PI := PrimitiveIdempotentsOfJordanAlgebra(J);
+  printf "done]\n";
+  A := New(DecAlg);
+  half := (k!2)^-1;
+  F := JordanFusionLaw(half);
+  A`algebra := J;
+  A`fusion_law := F;
+  vs := VectorSpace(J);
+  decs := AssociativeArray();
+  cnt := 0;
+  printf "Building decompositions... [";
+  pdec := 0;
+  dd := #PI div 10;
+  for a in PI do
+    cnt +:= 1;
+    parts := {@ sub<vs | Eigenspace(AdjointAction(a), l) > : l in [k | 1, 0, half ] @};
+    decs[cnt] := Decomposition(A, parts);
+    if cnt div dd gt pdec then
+      printf "%o", pdec;
+      pdec := cnt div dd;
+    end if;
+  end for;
+  printf "]\n";
+  A`decompositions := decs;
+  return A;
+
+*/
+intrinsic IsIsomorphic(A::Alg, B::Alg) -> BoolElt, Mtrx
+  {
+    Return if the algebras are isomorphic and if so a basis change matrix.
+  }
+  return IsIsomorphicMultiplication(Multiplication(A), Multiplication(B));
+end intrinsic;
+
+intrinsic IsIsomorphicMultiplication(A::Mtrx,B::Mtrx) -> BoolElt, Mtrx
+  {
+    Given a pair of matrices representing the multiplication map from the tensor 
+    product of an algebra to the algebra, return if the algebras are isomorphic 
+      and if so a basis change matrix.
+  }
+  r := Nrows(A);
+  c := Ncols(A);
+  R := Parent([ Rep(BaseRing(A)), Rep(BaseRing(B)) ][1]);
+  A := ChangeRing(A, R);
+  B := ChangeRing(B, R);
+  require r eq c*c: "Matrices must represent a multiplication.";
+  if Nrows(B) ne r or Ncols(B) ne c then
+    return false, 0;
+  end if;
+  if A eq B then
+    return true, IdentityMatrix(R, c);
+  end if;
+  v := c*c+1;
+  P := PolynomialRing(R, v);
+  A := ChangeRing(A, P);
+  B := ChangeRing(B, P);
+  BC := Matrix(P, c, c, [ P.i : i in [1..c*c] ]);
+  BCinv := Matrix(P, c, c, Cofactors(BC));
+  TP := TensorProduct(BC, BC);
+  rels := Eltseq(TP*A*BCinv - B*P.v);
+  I := ideal<P | rels, Determinant(BC)-1>;
+  EI := EliminationIdeal(I, {P.v});
+  if Dimension(EI) eq -1 then
+    return false, 0;
+  end if;
+  // I don't think this should ever happen
+  if #GroebnerBasis(EI) ne 1 then
+    return false, 0;
+  end if;
+  eqn := Basis(EI)[1];
+  PP<x> := PolynomialRing(R);
+  mp := hom<P -> PP | [ i eq v select x else 0 : i in [1..v] ] >;
+  eqn2 := mp(eqn);
+  if Support(eqn2) ne [ 0, c*2 ] then
+    return false, 0;
+  end if;
+  cnst := -Coefficient(eqn2, 0);
+  isit, sqrt := IsSquare(cnst);
+  if not isit then
+    // Though maybe over a bigger field
+    return false, 0;
+  end if;
+  I := ideal<P | rels, Determinant(BC)-(1/sqrt), P.v-(1/sqrt)>;
+  VS := VarietySequence(I);
+  if #VS eq 0 then
+    return false, 0;
+  end if;
+  scr := [];
+  for v in VS do
+    Append(~scr, &+[ x eq 1 select 1 else x eq -1 select 11/10 else 3 : x in v]);
+  end for;
+  ParallelSort(~scr, ~VS);
+  return true, Matrix(R, c, c, VS[#VS][1..c*c]);
+end intrinsic;
+
+
+intrinsic ChangeBasis(A::DecAlg, B::Mtrx) -> DecAlg
+  {
+    Return a copy of A under the basis change given by B. 
+  }
+  if ISA(Type(A), AxlDecAlg) then
+    axl := true;
+    Anew := New(AxlDecAlg);
+  else
+    axl := false;
+    Anew := New(DecAlg);
+  end if;
+  fus := FusionLaw(A); Anew`fusion_law := fus;
+  alg := ChangeBasis(Algebra(A), B); Anew`algebra := alg;
+  vs := VectorSpace(Anew);
+  IS := IndexSet(A);
+  oldbases := [ [ Basis(Part(Decompositions(A)[i], x)) : 
+               x in Elements(fus) ] : i in IS ];
+  bases := [ [ Basis(sub<vs|[b*B^-1:b in bas]>) : bas in y ] : y in oldbases ];
+  if axl then
+    axes := [ Vector(Eltseq(Axis(Decompositions(A)[i])))*B^-1 : i in IS ];
+    ParallelSort(~bases, ~axes);
+    Reverse(~bases);
+    Reverse(~axes);
+  else
+    Sort(~bases);
+    Reverse(~bases);
+  end if;
+  decs := AssociativeArray();
+  for i in [1..#bases] do
+    basis := bases[i];
+    parts := {@ sub<vs| b> : b in basis @};
+    if axl then
+      axis := axes[i];
+      Dnew := AxialDecomposition(Anew, parts, axis);
+    else
+      Dnew := Decomposition(Anew, parts);
+    end if;
+    decs[i] := Dnew;
+  end for;
+  Anew`decompositions := decs;
+  return Anew;
+end intrinsic;
