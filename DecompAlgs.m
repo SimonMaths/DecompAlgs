@@ -69,7 +69,7 @@ intrinsic RemoveDecomposition(A::DecAlg, i::.) -> DecAlg
   {
     Removes decomposition i from A.
   }
-  A := StandardCopy(A);
+  A := CopyDecompositionAlgebra(A);
   Remove(~(A`decompositions), i);
 end intrinsic;
 
@@ -86,7 +86,7 @@ intrinsic RemoveDecompositions(A::DecAlg, I::.) -> DecAlg
   {
     Removes the decompositions in I from A.
   }
-  A := StandardCopy(A);
+  A := CopyDecompositionAlgebra(A);
   for i in I do
     RemoveDecomposition(~A, i);
   end for;
@@ -107,21 +107,18 @@ end intrinsic;
 
 intrinsic CoefficientField(A::DecAlg) -> Rng
   {
-  "
   }
   return BaseRing(A);
 end intrinsic;
 
 intrinsic BaseRing(A::DecAlg) -> Rng
   {
-  "
   }
   return BaseRing(Algebra(A));
 end intrinsic;
 
 intrinsic BaseField(A::DecAlg) -> Rng
   {
-  "
   }
   return BaseRing(A);
 end intrinsic;
@@ -193,25 +190,86 @@ end intrinsic;
 ======= Creating DecAlgs =======
 
 */
-intrinsic StandardCopy(A::DecAlg) -> DecAlg
+intrinsic CopyDecompositionAlgebra(A::DecAlg) -> DecAlg
   {
-    Create a copy of A with decompositions index by the integers.
+    Create a copy of A.
   }
-  Anew := New(DecAlg);
+  if ISA(Type(A), AxlDecAlg) then
+    Anew := New(AxlDecAlg);
+    axl := true;
+  else
+    Anew := New(DecAlg);
+    axl := false;
+  end if;
   fus := FusionLaw(A); Anew`fusion_law := fus;
   alg := Algebra(A); Anew`algebra := alg;
   vs := VectorSpace(Anew);
-  bases := Reverse(Sort([ [ Basis(Part(Decompositions(A)[i], x)) : 
-               x in Elements(fus) ] : i in IndexSet(A) ]));
+  IS := [i : i in IndexSet(A)];
+  bases := [ [ Basis(Part(Decompositions(A)[i], x)) : 
+               x in Elements(fus) ] : i in IS ];
+  if axl then
+    axes := [ Vector(Eltseq(Axis(Decompositions(A)[i]))) : i in IS ];
+  end if;
   decs := AssociativeArray();
   for i in [1..#bases] do
     basis := bases[i];
     parts := {@ sub<vs| b> : b in basis @};
-    Dnew := Decomposition(Anew, parts);
-    decs[i] := Dnew;
+    if axl then
+      axis := axes[i];
+      Dnew := AxialDecomposition(Anew, parts, axis);
+    else
+      Dnew := Decomposition(Anew, parts);
+    end if;
+    decs[IS[i]] := Dnew;
   end for;
   Anew`decompositions := decs;
   return Anew;
+end intrinsic;
+
+intrinsic StandardCopy(A::DecAlg) -> DecAlg
+  {
+    Create a copy of A with decompositions index by the integers.
+  }
+  if ISA(Type(A), AxlDecAlg) then
+    Anew := New(AxlDecAlg);
+    axl := true;
+  else
+    Anew := New(DecAlg);
+    axl := false;
+  end if;
+  fus := FusionLaw(A); Anew`fusion_law := fus;
+  alg := Algebra(A); Anew`algebra := alg;
+  vs := VectorSpace(Anew);
+  IS := [i : i in IndexSet(A)];
+  bases := [ [ Basis(Part(Decompositions(A)[i], x)) : 
+               x in Elements(fus) ] : i in IS ];
+  neworder := [1..#IS];
+  if axl then
+    axes := [ Vector(Eltseq(Axis(Decompositions(A)[i]))) : i in IS ];
+    ParallelSort(~bases, ~neworder);
+    Reverse(~bases);
+    Reverse(~neworder);
+    axes := axes[neworder];
+  else
+    ParallelSort(~bases, ~neworder);
+    Reverse(~bases);
+    Reverse(~neworder);
+  end if;
+  oldidx := IS[neworder];
+  decs := AssociativeArray();
+  for i in [1..#bases] do
+    basis := bases[i];
+    parts := {@ sub<vs| b> : b in basis @};
+    if axl then
+      axis := axes[i];
+      Dnew := AxialDecomposition(Anew, parts, axis);
+    else
+      Dnew := Decomposition(Anew, parts);
+    end if;
+    decs[i] := Dnew;
+  end for;
+  Anew`decompositions := decs;
+  return Anew, oldidx;
 end intrinsic;
 
 intrinsic DecompositionAlgebra(A::ParAxlAlg) -> DecAlg
@@ -300,7 +358,6 @@ end intrinsic;
 
 intrinsic '.'(A::DecAlg, i::RngIntElt) -> DecAlgElt
   {
-  "
   }
   return BasisElement(A, i);
 end intrinsic;
@@ -441,7 +498,6 @@ end intrinsic;
 
 intrinsic '*'(x::DecAlgElt, r::RngElt) -> DecAlgElt
   {
-  "
   }
   return r*x;
 end intrinsic;
@@ -611,7 +667,6 @@ intrinsic NumberOfParts(D::Dec) -> RngIntElt
 end intrinsic;
 intrinsic Nparts(D::Dec) -> RngIntElt
   {
-  "
   }
   return NumberOfParts(D);
 end intrinsic;
@@ -629,7 +684,6 @@ intrinsic Label(D::Dec) -> .
   end for; 
   error "Cannot find label for D.";
 end intrinsic;
-
 
 intrinsic Decomposition(A::DecAlg, S::{@ModTupRng@}: labels := func<U|FusionLaw(A)!Position(S, U)>) -> Dec
   {
@@ -684,8 +738,10 @@ intrinsic IsAxial(D::Dec) -> BoolElt
   {
     Returns if the decomposition is axial
   }
-  // NOT YET IMPLEMENTED
-  // return Null;
+  if ISA(Type(D), AxlDec) then
+    return true;
+  end if;
+  return false;
 end intrinsic;
 // --------------------------------------------
 //
@@ -698,7 +754,7 @@ end intrinsic;
 
 */
 //Probably the following declaration is wrong.
-//declare type AxlDecAlgElt, DecAlgElt;
+declare type AxlDecAlgElt: DecAlgElt;
 
 declare type AxlDecAlg[AxlDecAlgElt]: DecAlg;
 
@@ -723,7 +779,7 @@ intrinsic Axes(A::AxlDecAlg) -> SetIndx[AxlDecAlgElt]
   {
     Returns the set of axes for A.
   }
-  return {@ Axis(Decomposition(A, k)) : k in IndexSet(A)@};
+  return {@ Axis(Decompositions(A)[k]) : k in IndexSet(A) @};
 end intrinsic;
 
 intrinsic AxialDecompositionAlgebra(A::ParAxlAlg) -> DecAlg
