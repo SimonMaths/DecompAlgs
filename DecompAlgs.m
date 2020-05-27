@@ -69,7 +69,7 @@ intrinsic RemoveDecomposition(A::DecAlg, i::.) -> DecAlg
   {
     Removes decomposition i from A.
   }
-  A := StandardCopy(A);
+  A := CopyDecompositionAlgebra(A);
   Remove(~(A`decompositions), i);
 end intrinsic;
 
@@ -86,7 +86,7 @@ intrinsic RemoveDecompositions(A::DecAlg, I::.) -> DecAlg
   {
     Removes the decompositions in I from A.
   }
-  A := StandardCopy(A);
+  A := CopyDecompositionAlgebra(A);
   for i in I do
     RemoveDecomposition(~A, i);
   end for;
@@ -190,6 +190,42 @@ end intrinsic;
 ======= Creating DecAlgs =======
 
 */
+intrinsic CopyDecompositionAlgebra(A::DecAlg) -> DecAlg
+  {
+    Create a copy of A.
+  }
+  if ISA(Type(A), AxlDecAlg) then
+    Anew := New(AxlDecAlg);
+    axl := true;
+  else
+    Anew := New(DecAlg);
+    axl := false;
+  end if;
+  fus := FusionLaw(A); Anew`fusion_law := fus;
+  alg := Algebra(A); Anew`algebra := alg;
+  vs := VectorSpace(Anew);
+  IS := [i : i in IndexSet(A)];
+  bases := [ [ Basis(Part(Decompositions(A)[i], x)) : 
+               x in Elements(fus) ] : i in IS ];
+  if axl then
+    axes := [ Vector(Eltseq(Axis(Decompositions(A)[i]))) : i in IS ];
+  end if;
+  decs := AssociativeArray();
+  for i in [1..#bases] do
+    basis := bases[i];
+    parts := {@ sub<vs| b> : b in basis @};
+    if axl then
+      axis := axes[i];
+      Dnew := AxialDecomposition(Anew, parts, axis);
+    else
+      Dnew := Decomposition(Anew, parts);
+    end if;
+    decs[IS[i]] := Dnew;
+  end for;
+  Anew`decompositions := decs;
+  return Anew;
+end intrinsic;
+
 intrinsic StandardCopy(A::DecAlg) -> DecAlg
   {
     Create a copy of A with decompositions index by the integers.
@@ -204,18 +240,22 @@ intrinsic StandardCopy(A::DecAlg) -> DecAlg
   fus := FusionLaw(A); Anew`fusion_law := fus;
   alg := Algebra(A); Anew`algebra := alg;
   vs := VectorSpace(Anew);
-  IS := IndexSet(A);
+  IS := [i : i in IndexSet(A)];
   bases := [ [ Basis(Part(Decompositions(A)[i], x)) : 
                x in Elements(fus) ] : i in IS ];
+  neworder := [1..#IS];
   if axl then
     axes := [ Vector(Eltseq(Axis(Decompositions(A)[i]))) : i in IS ];
-    ParallelSort(~bases, ~axes);
+    ParallelSort(~bases, ~neworder);
     Reverse(~bases);
-    Reverse(~axes);
+    Reverse(~neworder);
+    axes := axes[neworder];
   else
-    Sort(~bases);
+    ParallelSort(~bases, ~neworder);
     Reverse(~bases);
+    Reverse(~neworder);
   end if;
+  oldidx := IS[neworder];
   decs := AssociativeArray();
   for i in [1..#bases] do
     basis := bases[i];
@@ -229,7 +269,7 @@ intrinsic StandardCopy(A::DecAlg) -> DecAlg
     decs[i] := Dnew;
   end for;
   Anew`decompositions := decs;
-  return Anew;
+  return Anew, oldidx;
 end intrinsic;
 
 intrinsic DecompositionAlgebra(A::ParAxlAlg) -> DecAlg
@@ -698,8 +738,10 @@ intrinsic IsAxial(D::Dec) -> BoolElt
   {
     Returns if the decomposition is axial
   }
-  // NOT YET IMPLEMENTED
-  // return Null;
+  if ISA(Type(D), AxlDec) then
+    return true;
+  end if;
+  return false;
 end intrinsic;
 // --------------------------------------------
 //

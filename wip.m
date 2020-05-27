@@ -704,6 +704,14 @@ intrinsic SplittingField(I::RngMPol) -> Fld
   return R;
 end intrinsic;
 
+intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatGrpElt]:
+  idempotent := true, max_eigs:= 0) -> .
+  {}
+  M := [ MapToMatrix(hom<Domain(x)->Codomain(x)|x>) : x in M ];
+  return AxialMultiplications(X, H, M: 
+    idempotent:= idempotent, max_eigs := max_eigs);
+end intrinsic;
+
 
 intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
   idempotent := true, max_eigs:= 0) -> .
@@ -715,7 +723,7 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
   n := 0;
   while true do
     n +:= 1;
-    "Trying with",n,"eigenvalues.";
+    //"Trying with",n,"eigenvalues.";
     d := Dimension(X);
     F := Field(X);
     R := Restriction(X, H);
@@ -796,6 +804,7 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
       require n lt max_eigs: "Cannot find axial multiplication.";
     end if;
   end while;
+
 end intrinsic;
 
 intrinsic IsotypicDecomposition(X::ModGrp) -> SeqEnum
@@ -884,7 +893,7 @@ intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp) -
 
   A`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs] *]);
 
-  return A;
+  return StandardCopy(RemoveDuplicateDecompositions(A));
 end intrinsic; 
 
 intrinsic Multiplication(A::Alg) -> .
@@ -1044,4 +1053,43 @@ intrinsic ChangeBasis(A::DecAlg, B::Mtrx) -> DecAlg
   end for;
   Anew`decompositions := decs;
   return Anew;
+end intrinsic;
+
+intrinsic RemoveDuplicateDecompositions(A::DecAlg) -> DecAlg
+  {
+    Return a copy of A with duplicate decompositions removed. A decomposition is 
+    a duplicate if the parts are the same. If the decomposition is axial then 
+      the axis must also match. Note that a non-axial decomposition with parts 
+      identitcal to an axial decomposition will be removed.
+  }
+  IS := IndexSet(A);
+  decs := Decompositions(A);
+  fuselts := [ x : x in Elements(FusionLaw(A)) ];
+  lookup := AssociativeArray(); 
+  for idx in IS do
+    dec := decs[idx];
+    if IsAxial(dec) then
+      axis := Axis(dec);
+      isaxl := true;
+    else
+      axis := A!0;
+      isaxl := false;
+    end if;
+    parts := [ Basis(Part(dec, x)) : x in fuselts ];
+    val := <isaxl,axis,idx>;
+    if not parts in Keys(lookup) then
+      lookup[parts] := { val };
+    elif isaxl then
+      current := lookup[parts];
+      new := [ x : x in current | x[1] ];
+      axes := { x[2] : x in new };
+      if not axis in axes then
+        Append(~new, val);
+      end if;
+      lookup[parts] := new;
+    end if;
+  end for;
+  keep := { val[3] : val in lookup[key], key in Keys(lookup) };
+  remove := { x : x in IS } diff keep;
+  return RemoveDecompositions(A, remove);
 end intrinsic;
