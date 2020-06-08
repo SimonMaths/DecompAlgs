@@ -576,19 +576,18 @@ intrinsic Splitting(f::ModMatFldElt) -> ModMatFldElt
   return g*iC;
 end intrinsic;
 
-intrinsic ExtendToTensorSquare(f::ModMatRngElt, M::ModTupRng) -> ModMatGrpElt
+intrinsic ExtendToTensorSquare(f::ModMatRngElt) -> ModMatGrpElt
   {
     Extend the map f: S^2(M) -> X to a map from the tensor square of M to X.
   }
-  d := Dimension(M);
-  S2 := Domain(f);
-  require Dimension(S2) eq d*(d+1) div 2: "Map must be from symmetric square.";
-  T2 := TensorProduct(M,M);
-  p2 := Matrix(BaseRing(M), Dimension(T2), Dimension(S2), 
-    [<idx,sym_pair_idx(d,ij),1> 
-      : ij in [tns_idx_pair(d,idx)], idx in [1..Dimension(T2)] ]);
+  D := Nrows(f);
+  d := Ncols(f);
+  require d*(d+1) div 2 eq D: "Argument 1 is not a map from a symmetric square";
+  p2 := Matrix(BaseRing(f), d^2, D, [<idx,sym_pair_idx(d,ij),1> 
+      : ij in [tns_idx_pair(d,idx)], idx in [1..d^2] ]);
   return p2*f;
 end intrinsic;
+
 
 intrinsic MultiplicationsWithAssociatingForms(isom::ModMatGrpElt) 
   -> ModMatFld
@@ -603,8 +602,8 @@ intrinsic MultiplicationsWithAssociatingForms(isom::ModMatGrpElt)
   G := Group(M);
   R := BaseRing(M);
   d := Dimension(M);
- // require Characteristic(R) eq 0 or 
- //   Order(G) mod Characteristic(R) ne 0:"Expected ordinary characteristic.";
+  // require Characteristic(R) eq 0 or 
+  //   Order(G) mod Characteristic(R) ne 0:"Expected ordinary characteristic.";
   require Characteristic(R) notin {2,3}: "Characteristic must not be 2 or 3.";
 
   //isomspace := isom_to_dual(M);
@@ -658,11 +657,13 @@ intrinsic MultiplicationsWithAssociatingForms(isom::ModMatGrpElt)
     mult := S2_to_D*isom^-1 where S2_to_D is 
       Transpose(Matrix(R, Dimension(M), Dimension(S2), Eltseq(p3*proj)));
     mult := MapToMatrix(hom<S2 -> M | mult>);
-    Append(~mults, mult);
-    comult := Splitting(mult);
-    id_comult := MapToMatrix(hom< T2 -> MS2 | TensorProduct(idM, comult) >);
-    form := i2*id_comult*p3*proj;
-    Append(~forms, form);
+    if Rank(mult) eq Dimension(Codomain(mult)) then
+      Append(~mults, mult);
+      comult := Splitting(mult);
+      id_comult := MapToMatrix(hom< T2 -> MS2 | TensorProduct(idM, comult) >);
+      form := i2*id_comult*p3*proj;
+      Append(~forms, form);
+    end if;
   end for;
   return multspc,formspc 
     where multspc is sub<Parent(Rep(mults))|mults>
@@ -705,22 +706,23 @@ intrinsic SplittingField(I::RngMPol) -> Fld
 end intrinsic;
 
 intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatGrpElt]:
-  idempotent := true, max_eigs:= 0) -> .
+  idempotent := true, max_eigs:= 0, min_eigs:= 0, extendfield:= true) -> .
   {}
   M := [ MapToMatrix(hom<Domain(x)->Codomain(x)|x>) : x in M ];
   return AxialMultiplications(X, H, M: 
-    idempotent:= idempotent, max_eigs := max_eigs);
+    idempotent:= idempotent, max_eigs:= max_eigs, min_eigs:= min_eigs, 
+      extendfield:= extendfield);
 end intrinsic;
 
 
 intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
-  idempotent := true, max_eigs:= 0) -> .
+  idempotent := true, max_eigs:= 0, min_eigs:= 0, extendfield:= true) -> .
   {
   }
   if max_eigs le 0 then
     max_eigs := Dimension(X);
   end if;
-  n := 0;
+  n := Max(min_eigs-1,1);
   while true do
     n +:= 1;
     //"Trying with",n,"eigenvalues.";
@@ -730,17 +732,20 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
     T := TrivialModule(H, F);
     names := [];
     varnum := 0;
+    dummyvars := [ 1, 2 ];
+    names cat:= [ "dummy_" cat IntegerToString(i) : i in [1..#dummyvars] ];
+    varnum +:= #dummyvars;
     axial_parts := [ X!R!Image(inc.i).1 : i in [1..Dimension(inc)], 
                     inc in [ GHom(T,R) ] ];
-    nv := #axial_parts + #M + (n-1) ;
+    nv := #axial_parts + #M + (n-1) + #dummyvars;
     P := PolynomialRing(F, nv);
     rels := [];
-    axis := &+[ P.i*Vector(P, axial_parts[i]) : i in [1..#axial_parts] ];
-    axvars := [1..#axial_parts];
+    axvars := [(varnum+1)..(varnum+#axial_parts)];
+    axis := &+[ P.axvars[i]*Vector(P, axial_parts[i]) : i in [1..#axial_parts] ];
     names cat:= [ "axis_" cat IntegerToString(i) : i in [1..#axial_parts] ];
     varnum +:= #axial_parts;
-    mult := &+[ P.(varnum+i)*ChangeRing(M[i],P) : i in [1..#M] ];
     multvars := [(varnum+1)..(varnum+#M)];
+    mult := &+[ P.multvars[i]*ChangeRing(M[i],P) : i in [1..#M] ];
     names cat:= [ "mult_" cat IntegerToString(i) : i in [1..#M] ];
     varnum +:= #M;
     rels cat:= [ r : r in Eltseq(mult_with_map(axis,axis,mult)-axis) ];
@@ -748,16 +753,93 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
       v in Basis(X) ]);
     idnty := Parent(adjnt)!1;
     zerty := Parent(adjnt)!0;
+    eigvars := [(varnum+1)..(varnum+(n-1))];
     zeromatrix := &*([ adjnt - (idempotent select idnty else zerty) ] cat 
-                     [ adjnt - P.(varnum+i)*idnty : i in [1..n-1] ]);
+                     [ adjnt - P.eigvars[i]*idnty : i in [1..n-1] ]);
     names cat:= [ "ev_" cat IntegerToString(i) : i in [1..n-1] ];
     varnum +:= n-1;
     rels cat:= Eltseq(zeromatrix);
     AssignNames(~P, names);
     I := ideal<P|rels>;
-    J := [ I + ideal<P|P.i-1, [P.j:j in [multvars[1]..i-1]]>
-            : i in multvars ];
+    //I +:= ideal<P|&+[m^2:m in Eltseq(mult)]-1>;
+    //I +:= ideal<P|&+[P.j^2:j in multvars]-1>;
+    I +:= ideal<P|&+[P.j^2:j in axvars]*P.dummyvars[1]-1>;
+    I +:= ideal<P|&+[P.j^2:j in multvars]*P.dummyvars[2]-1>;
+    EVI := ProjectedEliminationIdeal(I, Seqset(eigvars));
+    require Dimension(EVI) le 0: "Too many eigenvalues used.";
+    if Dimension(EVI) eq 0 then break; end if;
+    if n ge max_eigs then
+      return [* "Cannot find axial multiplications." *];
+    end if;
+  end while; 
+  assert Dimension(EVI) eq 0;
+  sets_of_evals := { {@ e : e in p @} : p in Variety(EVI) };
+  output1 := AssociativeArray();
+  output2 := AssociativeArray();
+  for evals in sets_of_evals do
+    output1[evals] := [];
+    output2[evals] := [];
+    J := ideal<P|I, [I.eigvars[i]-evals[i]:i in [1..#evals]]>;
+    newvars := Sort(axvars cat multvars);
+    newmultvars := [ Index(newvars, m) : m in multvars ];
+    newaxvars := [ Index(newvars, a) : a in axvars ];
+    J := ProjectedEliminationIdeal(J, Set(newvars));
+    _ := GroebnerBasis(J);
+    foundpt, pt := GetPoint(J, extendfield);
+    if foundpt then
+      RR := Parent(Rep(pt));
+      XX := ChangeRing(X, RR);
+      MM := [ ChangeRing(m, RR) : m in M ];
+      AP := [ XX!Eltseq(ap) : ap in axial_parts ];
+      mult := &+[ MM[i]*pt[newmultvars[i]] : i in [1..#MM] ];
+      axis := &+[ AP[i]*pt[newaxvars[i]] : i in [1..#AP] ];
+      S2 := SymmetricSquare(XX);
+      mult := MapToMatrix(hom<S2->XX|mult>);
+      axis := XX!Eltseq(axis);
+      return AxialDecompositionAlgebra(mult, axis, H); 
+    end if;
+    /*
+    if Dimension(J) eq 0 then
+      if extendfield then
+        V,F := VarietyOverSplittingField(J);
+        XX := ChangeRing(X, F);
+        MM := [ ChangeRing(m, F) : m in M ];
+        AP := [ XX!Eltseq(ap) : ap in axial_parts ];
+      else
+        V := Variety(J);
+        XX := X;
+        MM := M;
+        AP := axial_parts; 
+      end if;
+      if not IsEmpty(V) then
+        for pt in V do
+          Append(~output1[evals], 
+              <&+[ MM[i]*pt[newmultvars[i]] : i in [1..#MM] ],
+               &+[ AP[i]*pt[newaxvars[i]] : i in [1..#AP] ]>);
+        end for;
+      else
+        Append(~output2[evals], J);
+      end if;
+    else
+      Append(~output2[evals], J);
+    end if;
+    */
+  end for;
+  //return output1, output2;
+  return "Failed";
+  
+/*
+    I := ProjectedEliminationIdeal(I, #dummyvars);
+    P := Parent(I.1);
+    if Dimension(I) ge 0 then
+      return I;
+    end if;
+    J := [ I + ideal<P|P.i-1, [P.j:j in [multvars[1]..i-1]]> : i in multvars ];
     J := &cat[ PrimaryDecomposition(j) : j in J ];
+    J := [ j + ideal<P| 1-&+[ P.j^2 : j in axvars ]*P.varnum > : j in J ];
+    J := &cat[ PrimaryDecomposition(j) : j in J ];
+    J := [ j : j in J | Dimension(j) ge 0 ];
+    J := [];
     foundax := false;
     mt_axs := [];
     XX := X;
@@ -766,7 +848,11 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
         foundax := false;
         mt_ax := AssociativeArray();
         _ := GroebnerBasis(I);
-        Q := SplittingField(I);
+        if extendfield then
+          Q := SplittingField(I);
+        else
+          Q := BaseRing(I);
+        end if;
         splitI := ChangeRing(I, Q);
         X := ChangeRing(XX, Q);
         for pt in Variety(splitI) do
@@ -801,10 +887,13 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
       end for;
       return decalgs;
     else
-      require n lt max_eigs: "Cannot find axial multiplication.";
+      if n ge max_eigs then
+        return [* "Cannot find axial multiplications." *];
+      end if;
+      //require n lt max_eigs: "Cannot find axial multiplication.";
     end if;
   end while;
-
+    */
 end intrinsic;
 
 intrinsic IsotypicDecomposition(X::ModGrp) -> SeqEnum
@@ -893,7 +982,7 @@ intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp) -
 
   A`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs] *]);
 
-  return StandardCopy(RemoveDuplicateDecompositions(A));
+  return sc where sc is StandardCopy(RemoveDuplicateDecompositions(A));
 end intrinsic; 
 
 intrinsic Multiplication(A::Alg) -> .
@@ -909,40 +998,6 @@ intrinsic Multiplication(A::Alg) -> .
   return M;
 end intrinsic; 
 
-/*
-
-  k := GF(q);
-  printf "Creating algebra... [";
-  J := JordanAlgebra(n, q);
-  printf "done]\n";
-  printf "Creating primitives... [";
-  PI := PrimitiveIdempotentsOfJordanAlgebra(J);
-  printf "done]\n";
-  A := New(DecAlg);
-  half := (k!2)^-1;
-  F := JordanFusionLaw(half);
-  A`algebra := J;
-  A`fusion_law := F;
-  vs := VectorSpace(J);
-  decs := AssociativeArray();
-  cnt := 0;
-  printf "Building decompositions... [";
-  pdec := 0;
-  dd := #PI div 10;
-  for a in PI do
-    cnt +:= 1;
-    parts := {@ sub<vs | Eigenspace(AdjointAction(a), l) > : l in [k | 1, 0, half ] @};
-    decs[cnt] := Decomposition(A, parts);
-    if cnt div dd gt pdec then
-      printf "%o", pdec;
-      pdec := cnt div dd;
-    end if;
-  end for;
-  printf "]\n";
-  A`decompositions := decs;
-  return A;
-
-*/
 intrinsic IsIsomorphic(A::Alg, B::Alg) -> BoolElt, Mtrx
   {
     Return if the algebras are isomorphic and if so a basis change matrix.
@@ -950,7 +1005,7 @@ intrinsic IsIsomorphic(A::Alg, B::Alg) -> BoolElt, Mtrx
   return IsIsomorphicMultiplication(Multiplication(A), Multiplication(B));
 end intrinsic;
 
-intrinsic IsIsomorphicMultiplication(A::Mtrx,B::Mtrx) -> BoolElt, Mtrx
+intrinsic IsIsomorphicMultiplication(A::Mtrx,B::Mtrx: extendfield:= true) -> BoolElt, Mtrx
   {
     Given a pair of matrices representing the multiplication map from the tensor 
     product of an algebra to the algebra, return if the algebras are isomorphic 
@@ -963,6 +1018,7 @@ intrinsic IsIsomorphicMultiplication(A::Mtrx,B::Mtrx) -> BoolElt, Mtrx
   B := ChangeRing(B, R);
   require r eq c*c: "Matrices must represent a multiplication.";
   if Nrows(B) ne r or Ncols(B) ne c then
+    "Matrix sizes don't match.";
     return false, 0;
   end if;
   if A eq B then
@@ -973,42 +1029,155 @@ intrinsic IsIsomorphicMultiplication(A::Mtrx,B::Mtrx) -> BoolElt, Mtrx
   A := ChangeRing(A, P);
   B := ChangeRing(B, P);
   BC := Matrix(P, c, c, [ P.i : i in [1..c*c] ]);
-  BCinv := Matrix(P, c, c, Cofactors(BC));
+  BCadj := Matrix(P, c, c, Cofactors(BC));
   TP := TensorProduct(BC, BC);
-  rels := Eltseq(TP*A*BCinv - B*P.v);
-  I := ideal<P | rels, Determinant(BC)-1>;
-  EI := EliminationIdeal(I, {P.v});
-  if Dimension(EI) eq -1 then
+  rels := [ Determinant(BC)*P.v-1 ] cat Eltseq(TP*A*BCadj*P.v - B);
+  I := ideal<P | rels>;
+  if Dimension(I) lt 0 then
     return false, 0;
   end if;
-  // I don't think this should ever happen
-  if #GroebnerBasis(EI) ne 1 then
+  haspt, pt := GetPoint(I, extendfield);
+  if not haspt then
     return false, 0;
   end if;
-  eqn := Basis(EI)[1];
-  PP<x> := PolynomialRing(R);
-  mp := hom<P -> PP | [ i eq v select x else 0 : i in [1..v] ] >;
-  eqn2 := mp(eqn);
-  if Support(eqn2) ne [ 0, c*2 ] then
-    return false, 0;
+  return true, Matrix(c, c, pt[1..c*c]);
+end intrinsic;
+
+intrinsic GetPoint(I::RngMPol, extendfield::BoolElt: Ignorevars := {}) -> .
+  {
+  }
+  if Dimension(I) lt 0 then
+    return false, [];
   end if;
-  cnst := -Coefficient(eqn2, 0);
-  isit, sqrt := IsSquare(cnst);
-  if not isit then
-    // Though maybe over a bigger field
-    return false, 0;
+  P := Parent(I.1);
+  if not IsEmpty(Ignorevars) then
+    require ISA(Type(Ignorevars), SetEnum): "Ignorevars should be a set.";
+    require forall(x){ x : x in Ignorevars | x in {1..Ngens(P)} }:
+      "Value",x,"in range.";
+    Keepvars := Sort(Setseq({1..Ngens(P)} diff Ignorevars));
+    reorder := Sort(Setseq(Ignorevars)) cat Keepvars;
+    mp := hom<P -> P | [ P.Index(reorder, i) : i in [1..#reorder] ] >;
+    I := ideal<P | [ b@mp : b in Basis(I) ] >;
   end if;
-  I := ideal<P | rels, Determinant(BC)-(1/sqrt), P.v-(1/sqrt)>;
-  VS := VarietySequence(I);
-  if #VS eq 0 then
-    return false, 0;
-  end if;
-  scr := [];
-  for v in VS do
-    Append(~scr, &+[ x eq 1 select 1 else x eq -1 select 11/10 else 3 : x in v]);
+  R := BaseRing(P);
+  U := PolynomialRing(R);
+  v := Ngens(P);
+  _ := GroebnerBasis(I);
+  vals := [];
+  for i in Reverse([#Ignorevars+1..v]) do
+    EI := EliminationIdeal(I, i-1);
+    if Dimension(EI) eq i then
+      foundval := false;
+      for tryval in [ R!0, R!1 ] do
+        if Dimension(ideal<P|Basis(I), P.i-tryval>) ge 0 then
+          foundval := true;
+          vals := [ tryval ] cat vals;
+          break;
+        end if;
+      end for;
+      if not foundval then
+        return false, [];
+      end if;
+    else
+      mp := hom<P->U|[0:j in [1..i-1]] cat [U.1] cat vals>;
+      eqn := GroebnerBasis(EI)[1]@mp;
+      fact := Factorization(eqn);
+      Sort(~fact, func<x,y|Degree(x[1])-Degree(y[1])>);
+      term := fact[1][1];
+      if Degree(term) gt 1 then
+        if not extendfield then
+          return false, [];
+        end if;
+        R := SplittingField(term);
+        I := ChangeRing(I, R);
+        P := ChangeRing(P, R);
+        U := ChangeRing(U, R);
+        vals := [ R!x : x in vals ];
+        eqn := U!eqn;
+        fact := Factorization(eqn);
+        Sort(~fact, func<x,y|Degree(x[1])-Degree(y[1])>);
+        term := fact[1][1];
+        assert Degree(term) eq 1;
+      end if;
+      vals := [ R | -Coefficient(term, 0) ] cat vals;
+    end if;
+    I := ideal<P|Basis(I), P.i-vals[1]>;
   end for;
-  ParallelSort(~scr, ~VS);
-  return true, Matrix(R, c, c, VS[#VS][1..c*c]);
+  return true, vals;
+end intrinsic;
+
+intrinsic VarietyOverSplittingField(I::RngMPol) -> .
+  {
+  }
+  require Dimension(I) eq 0: "Argument 1 is not zero-dimensional";
+  _ := GroebnerBasis(I);
+  P := Parent(I.1);
+  R := BaseRing(P);
+  v := Ngens(P);
+  PEI := ProjectedEliminationIdeal(I, v-1);
+  for b in GroebnerBasis(PEI) do
+    U := PolynomialRing(R);
+    mp := hom<Parent(PEI.1)->U|U.1>;
+    R := SplittingField(b@mp);
+  end for;
+  PEI := ChangeRing(PEI, R);
+  V := VarietySequence(PEI);
+  if v eq 1 then
+    return V, R;
+  end if;
+  bigV := [];
+  for i in [1..#V] do
+    pt := V[i];
+    PP := PolynomialRing(R, v-1);
+    mp := hom<P->PP|[ PP.i : i in [1..v-1] ] cat pt>;
+    J := ideal<PP|[ b@mp : b in Basis(I) ]>;
+    VOSF, RR := VarietyOverSplittingField(J);
+    if Type(R) eq FldRat and Type(RR) eq FldRat then
+      isit := true;
+      inc := hom<R->RR|>;
+    else
+      isit, inc := IsSubfield(R, RR);
+    end if;
+    assert isit;
+    R := RR;
+    V := [ [ x@inc : x in v] : v in V ];
+    bigV := [ bv@inc : bv in bigV ];
+    pt := V[i];
+    for pt2 in VOSF do
+      Append(~bigV, [c : c in pt2] cat pt);
+    end for;
+  end for;
+  return [ <c:c in pt> : pt in bigV ], R;
+end intrinsic;
+
+intrinsic ProjectedEliminationIdeal(I::RngMPol, S::Set) -> RngMPol
+  {
+    Projected Elmination Ideal
+  }
+  P := Parent(I.1);
+  R := BaseRing(P);
+  Q := PolynomialRing(R, #S);
+  if IsEmpty(S) then
+    return ideal<Q|>;
+  end if;
+  if ISA(Type(Rep(S)), RngMPolElt) then
+    Pvars := [ P.i : i in [1..Ngens(P)] ];
+    newS := { Index(Pvars, s) : s in S };
+    require #newS eq #S and 0 notin newS: "Values in S are not correct.";
+    S := newS;
+  end if;
+  require ISA(Type(Rep(S)), RngIntElt): "Values in S are not correct.";
+  EI := EliminationIdeal(I, S);
+  S := Sort(Setseq(S));
+  AssignNames(~Q, Names(P)[S]);
+  mp := hom< P -> Q | [ j eq 0 select 0 else Q.j where j is Index(S, i)
+                        : i in [1..Ngens(P)] ] >;
+  return ideal<Q | [b@mp:b in Basis(EI)] >;
+end intrinsic;
+
+intrinsic ProjectedEliminationIdeal(I::RngMPol, k::RngIntElt) -> RngMPol
+  {}
+  return ProjectedEliminationIdeal(I, {k+1..Ngens(I)});
 end intrinsic;
 
 
@@ -1092,4 +1261,178 @@ intrinsic RemoveDuplicateDecompositions(A::DecAlg) -> DecAlg
   keep := { val[3] : val in lookup[key], key in Keys(lookup) };
   remove := { x : x in IS } diff keep;
   return RemoveDecompositions(A, remove);
+end intrinsic;
+
+intrinsic egD7(: more:= 1) -> .
+  {tmp}
+  n := 7;
+  G := DihedralGroup(n);
+  F := CyclotomicField(n*more);
+  //F := SplittingField(P.1^7-1) where P is PolynomialRing(Rationals());
+  X := [ x : x in DirectSumDecomposition(GModule(G,F)) | Dimension(x) eq 2 ];
+  Y := [ DirectSum([X[i]:i in S]) : S in Subsets({1..#X}, 2) ];
+  M := [**];
+  F := [**];
+  for y in Y do
+    dy := Dual(y);
+    gh := GHom(y,dy);
+    dimgh := Dimension(gh);
+    isoms := [ isom : isom in [&+[ cf[i]*gh.i : i in [1..dimgh] ]],
+                cf in CartesianPower([-1..1], dimgh) | Image(isom) eq dy ];
+    Append(~M, []);
+    Append(~F, []);
+    for isom in isoms do
+      m,f := MultiplicationsWithAssociatingForms(isom);
+      Append(~(M[#M]), m);
+      Append(~(F[#F]), f);
+    end for;
+  end for;
+  return Y,M,F; 
+end intrinsic;
+
+intrinsic DGSF(n::RngIntElt) -> .
+  {Splitting field for the dihedral group.}
+  require n ge 1: "Argument 1 should be >= 1.";
+  P<x> := PolynomialRing(Rationals());
+  cache := [ P | 0, 1, 1, x+1 ];
+  n +:= 1;
+  while #cache lt n do
+    Append(~cache, x*cache[#cache-1] - cache[#cache-3]);
+  end while;
+  return cache[n];
+end intrinsic;
+
+intrinsic egD3() -> .
+  {tmp}
+  G := DihedralGroup(3);
+  H := sub<G|G.2>;
+  F := Rationals();
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | Dimension(x) gt 1 ]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  ism := &+[ b : b in Basis(gh) ];
+  M,F := MultiplicationsWithAssociatingForms(ism);
+  return AxialMultiplications(X,H,Basis(M));
+  /*out1, out2 := AxialMultiplications(X, H, Basis(M));
+  I := out2[{-1}][1];
+  S2 := SymmetricSquare(X);
+  mult := MapToMatrix(hom<S2->X|mult>);
+  axis := X!Eltseq(axis);
+  return AxialDecompositionAlgebra(mult, axis, H);*/
+end intrinsic;
+
+intrinsic egD5() -> .
+  {tmp}
+  G := DihedralGroup(5);
+  H := sub<G|G.2>;
+  F := Rationals();
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | Dimension(x) gt 1 ]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  d := Dimension(gh);
+  ism := &+[ b : b in Basis(gh) ];
+  M,F := MultiplicationsWithAssociatingForms(ism);
+  return AxialMultiplications(X, H, Basis(M));
+end intrinsic;
+
+intrinsic egD7_3() -> .
+  {tmp}
+  G := DihedralGroup(7);
+  H := sub<G|G.2>;
+  F := Rationals();
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | Dimension(x) gt 1 ]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  d := Dimension(gh);
+  ism := &+[ b : b in Basis(gh) ];
+  M,F := MultiplicationsWithAssociatingForms(ism);
+  return AxialMultiplications(X, H, Basis(M));
+end intrinsic;
+
+intrinsic egD7_2() -> .
+  {tmp}
+  G := DihedralGroup(7);
+  H := sub<G|G.2>;
+  F := SplittingField(DGSF(7));
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | Dimension(x) gt 1 ][[1,3]]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  d := Dimension(gh);
+  ism := &+[ b : b in Basis(gh) ];
+  M,F := MultiplicationsWithAssociatingForms(ism);
+  return AxialMultiplications(X, H, Basis(M));
+end intrinsic;
+
+intrinsic egD9_3() -> .
+  {tmp}
+  G := DihedralGroup(9);
+  H := sub<G|G.2>;
+  F := RationalField();
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | Dimension(x) gt 2 ]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  d := Dimension(gh);
+  ism := gh.1;
+  /*
+  for cfs in CartesianPower([-1..1], d) do
+    ism := &+[ cfs[i]*gh.i : i in [1..d] ];
+    if Rank(ism) eq Dimension(X) then
+      M := MultiplicationsWithAssociatingForms(ism);
+      AM := AxialMultiplications(X, H, Basis(M): extendfield := false);
+      cfs,AM;
+      if ISA(Type(AM), DecAlg) then
+        return AM;
+      end if;
+    end if;
+  end for;
+  */
+  M := MultiplicationsWithAssociatingForms(ism);
+  return AxialMultiplications(X, H, Basis(M));
+end intrinsic;
+
+intrinsic egD9_4() -> .
+  {tmp}
+  G := DihedralGroup(9);
+  H := sub<G|G.2>;
+  F := RationalField();
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | Dimension(x) ge 2 ]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  d := Dimension(gh);
+  for cfs in CartesianPower([-1..1], d) do
+    ism := &+[ cfs[i]*gh.i : i in [1..d] ];
+    if Rank(ism) eq Dimension(X) then
+      M := MultiplicationsWithAssociatingForms(ism);
+      AM := AxialMultiplications(X, H, Basis(M): extendfield := true);
+      cfs,BaseRing(AM);
+      if Type(BaseRing(AM)) eq FldRat then
+        return AM;
+      end if;
+      if ISA(Type(AM), DecAlg) then
+        return AM;
+      end if;
+    end if;
+  end for;
+  M := MultiplicationsWithAssociatingForms(ism);
+  return AxialMultiplications(X, H, Basis(M));
+end intrinsic;
+
+intrinsic DihedralMultTable(n::RngIntElt) -> .
+  {}
+  assert IsOdd(n);
+  assert n ge 0;
+  idx := function(i);
+    i := i mod n;
+    if i in [0..(n-1) div 2] then
+      return i;
+    end if;
+    return n-i;
+  end function;
+  return [[<idx(i-j),idx(i+j)>:j in [1..(n-1)div 2] ] : i in [1..(n-1)div 2]]; 
 end intrinsic;
