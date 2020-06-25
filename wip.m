@@ -665,6 +665,11 @@ intrinsic MultiplicationsWithAssociatingForms(isom::ModMatGrpElt)
       Append(~forms, form);
     end if;
   end for;
+  if IsEmpty(mults) then
+    MM := MapToMatrix(hom<S2 -> M|ZeroMatrix(R, Dimension(S2), Dimension(M))>);
+    FF := MapToMatrix(hom<S2 -> T|ZeroMatrix(R, Dimension(S2), 1)>);
+    return sub<Parent(MM)|MM>, sub<Parent(FF)|FF>;
+  end if;
   return multspc,formspc 
     where multspc is sub<Parent(Rep(mults))|mults>
     where formspc is sub<Parent(Rep(forms))|forms>;
@@ -705,23 +710,115 @@ intrinsic SplittingField(I::RngMPol) -> Fld
   return R;
 end intrinsic;
 
+intrinsic AxialMultiplicationIdeal(X::ModGrp, H::Grp, M::SeqEnum,
+    numevs::RngIntElt, fixedevs::SetEnum) -> RngMPol
+  {
+    Return the ideal describing axial multipliations on X in the space spanned 
+    by M and assuming the axis lives in a trivial group on restriction to H.
+  }
+  d := Dimension(X);
+  F := Field(X);
+  // Make sure 1 is an eigenvalue
+  fixedevs := {@ F!1 @} join fixedevs;
+  R := Restriction(X, H);
+  T := TrivialModule(H, F);
+  names := [];
+  numvars := 0;
+  
+  // Variables to ensure axis and multiplication are non-zero
+  dummyvars := [ 1, 2 ];
+  names cat:= [ "dummy_" cat IntegerToString(i) : i in [1..#dummyvars] ];
+  numvars +:= #dummyvars;
+
+  // Find the number of axial variables
+  axialparts := [ X!R!Image(inc.i).1 : i in [1..Dimension(inc)], 
+                  inc in [ GHom(T,R) ] ];
+  axialvars := [numvars+1..numvars+#axialparts];
+  names cat:= [ "axis_" cat IntegerToString(i) : i in [1..#axialvars] ];
+  numvars +:= #axialvars;
+
+  multparts := [Matrix(m) : m in M]; 
+  multvars := [numvars+1..numvars+#multparts];
+  names cat:= [ "mult_" cat IntegerToString(i) : i in [1..#multvars] ];
+  numvars +:= #multvars;
+
+  eigvars := [numvars+1..numvars+numevs-#fixedevs];
+  names cat:= [ "ev_" cat IntegerToString(i) : i in [1..#eigvars] ];
+  numvars +:= #eigvars;
+  
+  P := PolynomialRing(F, numvars);
+  AssignNames(~P, names);
+  rels := [];
+
+  axialparts := [ Vector(P, ax) : ax in axialparts ];
+  multparts := [ ChangeRing(m, P) : m in multparts ];
+
+  axis := &+[ P.axialvars[i]*axialparts[i] : i in [1..#axialvars] ];
+  mult := &+[ P.multvars[i]*multparts[i] : i in [1..#multvars] ];
+
+  // Idempotent relations
+  rels cat:= [ r : r in Eltseq(mult_with_map(axis,axis,mult)-axis) ];
+
+  // Calculate the adjoint action of axis
+  adjnt := Matrix([ Eltseq(mult_with_map(axis, Parent(axis)!v, mult)) : 
+    v in Basis(X) ]);
+
+  // Eigenvalue relations
+  idntymatrix := Parent(adjnt)!1;
+  zeromatrix := &*([ adjnt - P.eigvars[i]*idntymatrix : i in [1..#eigvars] ]
+               cat [ adjnt - eig*idntymatrix : eig in fixedevs ]);
+  rels cat:= Eltseq(zeromatrix);
+
+  // Non-zero axis and multiplication relations
+  rels cat:= [&+[P.j^2:j in axialvars]*P.dummyvars[1]-1];
+  rels cat:= [&+[P.j^2:j in multvars]*P.dummyvars[2]-1];
+
+  I := ideal<P|rels>;
+  _ := GroebnerBasis(I);
+  return I, axis, mult;
+end intrinsic;
+
+intrinsic SymMod(n::RngIntElt) -> ModGrp
+  {
+    The (n-1) dimensional irreducible of Sym(n) in the standard module over the
+    rationals.
+  }
+  require n gt 0: "Argument 1 must be a positive integer.";
+  X := GModule(SymmetricGroup(n), Rationals());
+  if n eq 1 then
+    return X;
+  end if;
+  DSD := DirectSumDecomposition(X);
+  T := TrivialModule(Group(X), Rationals());
+  return Rep([ x : x in DSD | not IsIsomorphic(T, x) ]);
+end intrinsic;
+
+
 intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatGrpElt]:
-  idempotent := true, max_eigs:= 0, min_eigs:= 0, extendfield:= true) -> .
+    idempotent := true, max_eigs:= 0, min_eigs:= 0, extendfield:= true,
+    assume_eigs := {}) -> .
   {}
   M := [ MapToMatrix(hom<Domain(x)->Codomain(x)|x>) : x in M ];
   return AxialMultiplications(X, H, M: 
     idempotent:= idempotent, max_eigs:= max_eigs, min_eigs:= min_eigs, 
-      extendfield:= extendfield);
+      extendfield:= extendfield, assume_eigs := assume_eigs);
 end intrinsic;
 
-
 intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
-  idempotent := true, max_eigs:= 0, min_eigs:= 0, extendfield:= true) -> .
+    idempotent := true, max_eigs:= 0, min_eigs:= 0, extendfield:= true,
+    assume_eigs := {}) -> .
   {
   }
   if max_eigs le 0 then
     max_eigs := Dimension(X);
   end if;
+  if idempotent then
+    Include(~assume_eigs, 1);
+  else
+    Include(~assume_eigs, 0);
+  end if;
+  assume_eigs := {@ ev : ev in assume_eigs @};
+  min_eigs := Max(#assume_eigs, min_eigs);
   n := Max(min_eigs-1,1);
   while true do
     n +:= 1;
@@ -737,7 +834,7 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
     varnum +:= #dummyvars;
     axial_parts := [ X!R!Image(inc.i).1 : i in [1..Dimension(inc)], 
                     inc in [ GHom(T,R) ] ];
-    nv := #axial_parts + #M + (n-1) + #dummyvars;
+    nv := #axial_parts + #M + (n-#assume_eigs) + #dummyvars;
     P := PolynomialRing(F, nv);
     rels := [];
     axvars := [(varnum+1)..(varnum+#axial_parts)];
@@ -753,11 +850,11 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
       v in Basis(X) ]);
     idnty := Parent(adjnt)!1;
     zerty := Parent(adjnt)!0;
-    eigvars := [(varnum+1)..(varnum+(n-1))];
-    zeromatrix := &*([ adjnt - (idempotent select idnty else zerty) ] cat 
-                     [ adjnt - P.eigvars[i]*idnty : i in [1..n-1] ]);
-    names cat:= [ "ev_" cat IntegerToString(i) : i in [1..n-1] ];
-    varnum +:= n-1;
+    eigvars := [(varnum+1)..(varnum+n-#assume_eigs)];
+    zeromatrix := &*([ adjnt - P.eigvars[i]*idnty : i in [1..#eigvars] ]
+                 cat [ adjnt - eig*idnty : eig in assume_eigs ]);
+    names cat:= [ "ev_" cat IntegerToString(i) : i in [1..#eigvars] ];
+    varnum +:= #eigvars;
     rels cat:= Eltseq(zeromatrix);
     AssignNames(~P, names);
     I := ideal<P|rels>;
@@ -765,15 +862,23 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
     //I +:= ideal<P|&+[P.j^2:j in multvars]-1>;
     I +:= ideal<P|&+[P.j^2:j in axvars]*P.dummyvars[1]-1>;
     I +:= ideal<P|&+[P.j^2:j in multvars]*P.dummyvars[2]-1>;
-    EVI := ProjectedEliminationIdeal(I, Seqset(eigvars));
-    require Dimension(EVI) le 0: "Too many eigenvalues used.";
-    if Dimension(EVI) eq 0 then break; end if;
+    if #eigvars eq 0 then
+      if Dimension(I) ge 0 then 
+        sets_of_evals := { {@ @} };
+        break;
+      end if;
+    else 
+      EVI := ProjectedEliminationIdeal(I, Seqset(eigvars));
+      require Dimension(EVI) le 0: "Too many eigenvalues used.";
+      if Dimension(EVI) eq 0 then 
+        sets_of_evals := { {@ e : e in p @} : p in Variety(EVI) };
+        break;
+      end if;
+    end if;
     if n ge max_eigs then
       return [* "Cannot find axial multiplications." *];
     end if;
   end while; 
-  assert Dimension(EVI) eq 0;
-  sets_of_evals := { {@ e : e in p @} : p in Variety(EVI) };
   output1 := AssociativeArray();
   output2 := AssociativeArray();
   for evals in sets_of_evals do
@@ -1201,12 +1306,12 @@ intrinsic ChangeBasis(A::DecAlg, B::Mtrx) -> DecAlg
   bases := [ [ Basis(sub<vs|[b*B^-1:b in bas]>) : bas in y ] : y in oldbases ];
   if axl then
     axes := [ Vector(Eltseq(Axis(Decompositions(A)[i])))*B^-1 : i in IS ];
-    ParallelSort(~bases, ~axes);
-    Reverse(~bases);
-    Reverse(~axes);
+    //ParallelSort(~bases, ~axes);
+    //Reverse(~bases);
+    //Reverse(~axes);
   else
-    Sort(~bases);
-    Reverse(~bases);
+    //Sort(~bases);
+    //Reverse(~bases);
   end if;
   decs := AssociativeArray();
   for i in [1..#bases] do
@@ -1302,7 +1407,7 @@ intrinsic DGSF(n::RngIntElt) -> .
   return cache[n];
 end intrinsic;
 
-intrinsic egD3() -> .
+intrinsic egD3_1() -> .
   {tmp}
   G := DihedralGroup(3);
   H := sub<G|G.2>;
@@ -1322,7 +1427,7 @@ intrinsic egD3() -> .
   return AxialDecompositionAlgebra(mult, axis, H);*/
 end intrinsic;
 
-intrinsic egD5() -> .
+intrinsic egD5_2() -> .
   {tmp}
   G := DihedralGroup(5);
   H := sub<G|G.2>;
@@ -1367,6 +1472,34 @@ intrinsic egD7_2() -> .
   return AxialMultiplications(X, H, Basis(M));
 end intrinsic;
 
+intrinsic egD9_2() -> .
+  {tmp}
+  G := DihedralGroup(9);
+  H := sub<G|G.2>;
+  F := RationalField();
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | Dimension(x) gt 2 ]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  d := Dimension(gh);
+  ism := gh.1;
+  /*
+  for cfs in CartesianPower([-1..1], d) do
+    ism := &+[ cfs[i]*gh.i : i in [1..d] ];
+    if Rank(ism) eq Dimension(X) then
+      M := MultiplicationsWithAssociatingForms(ism);
+      AM := AxialMultiplications(X, H, Basis(M): extendfield := false);
+      cfs,AM;
+      if ISA(Type(AM), DecAlg) then
+        return AM;
+      end if;
+    end if;
+  end for;
+  */
+  M := MultiplicationsWithAssociatingForms(ism);
+  return AxialMultiplications(X, H, Basis(M));
+end intrinsic;
+
 intrinsic egD9_3() -> .
   {tmp}
   G := DihedralGroup(9);
@@ -1405,23 +1538,61 @@ intrinsic egD9_4() -> .
   DX := Dual(X);
   gh := GHom(X,DX);
   d := Dimension(gh);
-  for cfs in CartesianPower([-1..1], d) do
+  cfs := [1,1,2/3,-1/6];
+  //for cfs in CartesianPower([-1..1], d) do
     ism := &+[ cfs[i]*gh.i : i in [1..d] ];
     if Rank(ism) eq Dimension(X) then
-      M := MultiplicationsWithAssociatingForms(ism);
+      //M := MultiplicationsWithAssociatingForms(ism);
+      //Basis(M);
+      M := GHom(SymmetricSquare(X), X);
+      //AM := AxialMultiplications(X, H, Basis(M): extendfield := true, 
+      //  assume_eigs := {1,0,-1/2,1/2}, min_eigs := 4, max_eigs := 4);
       AM := AxialMultiplications(X, H, Basis(M): extendfield := true);
-      cfs,BaseRing(AM);
-      if Type(BaseRing(AM)) eq FldRat then
-        return AM;
-      end if;
+      AM;
       if ISA(Type(AM), DecAlg) then
         return AM;
       end if;
     end if;
-  end for;
-  M := MultiplicationsWithAssociatingForms(ism);
-  return AxialMultiplications(X, H, Basis(M));
+  //end for;
+  return AM;
 end intrinsic;
+
+intrinsic egD9_2() -> .
+  {tmp}
+  G := DihedralGroup(9);
+  H := sub<G|G.2>;
+  F := SplittingField(DGSF(9));
+  X := GModule(G, F);
+  X := DirectSum([ x : x in DirectSumDecomposition(X) | IsFaithful(Character(x)) ][[1,2]]);
+  DX := Dual(X);
+  gh := GHom(X,DX);
+  d := Dimension(gh);
+  cfs := [1,1];
+  //for cfs in CartesianPower([-1..1], d) do
+    ism := &+[ cfs[i]*gh.i : i in [1..d] ];
+  //  if Rank(ism) eq Dimension(X) then
+      ism := &+[ cfs[i]*gh.i : i in [1..d] ];
+      M := MultiplicationsWithAssociatingForms(ism);
+      AM := AxialMultiplications(X, H, Basis(M): extendfield := true);
+  //    cfs,BaseRing(AM);
+  //  end if;
+  //end for;
+  return AM;
+end intrinsic;
+
+intrinsic egSym(n::RngIntElt) -> .
+  {tmp}
+  G := SymmetricGroup(n);
+  H := sub<G|G.2>;
+  assert Order(H) eq 2;
+  F := Rationals();
+  X := GModule(G, F);
+  X := [ x : x in DirectSumDecomposition(X) | IsFaithful(Character(x)) ][1];
+  M := MultiplicationsWithAssociatingForms(X);
+  AM := AxialMultiplications(X, H, Basis(M): extendfield := false);
+  return AM;
+end intrinsic;
+
 
 intrinsic DihedralMultTable(n::RngIntElt) -> .
   {}
@@ -1435,4 +1606,246 @@ intrinsic DihedralMultTable(n::RngIntElt) -> .
     return n-i;
   end function;
   return [[<idx(i-j),idx(i+j)>:j in [1..(n-1)div 2] ] : i in [1..(n-1)div 2]]; 
+end intrinsic;
+
+function sym_da(n);
+  G := SymmetricGroup(n);
+  X := GModule(G, Rationals());
+  X := [ x : x in DirectSumDecomposition(X) | Dimension(x) ne 1 ][1];
+  X2 := TensorProduct(X,X);
+  
+  fi := func<i|[ j eq i select 1 else -2/(n-2) : j in [1..(n-1)] ]>;
+  fo := [ -1/(n-2) : j in [1..(n-1)] ];
+  mlt := Matrix([(i mod n) eq 0 select fi(i div n) else fo:i in [n..n*(n-1)] ]);
+  mlt := MapToMatrix(hom<X2->X|mlt>);
+  axs := X![ -1/n : i in [1..(n-1)] ];
+  return X2,X,mlt,axs;
+end function;
+
+intrinsic SymMult(n::RngIntElt) -> .
+  {
+    Multiplication for symmetric group DA.
+  }
+  G := SymmetricGroup(n);
+  X := GModule(G, Rationals());
+  X := [ x : x in DirectSumDecomposition(X) | Dimension(x) ne 1 ][1];
+  X2 := TensorProduct(X,X);
+  
+  fi := func<i|[ j eq i select 1 else -2/(n-2) : j in [1..(n-1)] ]>;
+  fo := [ -1/(n-2) : j in [1..(n-1)] ];
+  mlt := Matrix([(i mod n) eq 0 select fi(i div n) else fo:i in [n..n*(n-1)] ]);
+  mlt := MapToMatrix(hom<X2->X|mlt>);
+  axs := X![ -1/n : i in [1..(n-1)] ];
+  return X2,X,mlt,axs;
+end intrinsic;
+
+intrinsic SymDA(n::RngIntElt) -> AxlDecAlg
+  {
+    Decomposition algebra built from the (n-1)-dimensional summand of the 
+    standard module for Sym(n). For now, n must be odd.
+  }
+  require IsOdd(n): "Argument 1 must be odd. This restriction may be " cat
+    "lifted in future versions.";
+  X2,X,mlt,axs := sym_da(n);
+  G := Group(X);
+  H := sub<G|[2,1] cat [3..n]>;
+  return AxialDecompositionAlgebra(mlt, axs, H);
+end intrinsic;
+
+intrinsic SymDA_alt(n::RngIntElt) -> AxlDecAlg
+  {
+    Decomposition algebra built from the (n-1)-dimensional summand of the 
+    standard module for Sym(n). For now, n must be odd.
+  }
+  require IsOdd(n): "Argument 1 must be odd. This restriction may be " cat
+    "lifted in future versions.";
+  X2,X,mlt,axs := sym_da(n);
+  G := Group(X);
+  //k := (n div 4)*4;
+  //H := sub<G|Reverse([1..k]) cat [k+1..n]>;
+  H := sub<G|(1,2)(3,4)>;
+  assert Dimension(sub<R|axs>) eq 1 where R is Restriction(X,H);
+  return AxialDecompositionAlgebra(mlt, axs, H);
+end intrinsic;
+
+intrinsic AltDA(n::RngIntElt) -> AxlDecAlg
+  {
+    Decomposition algebra built from the (n-1)-dimensional summand of the 
+    standard module for Alt(n). For now, n must be odd.
+  }
+  require IsOdd(n): "Argument 1 must be odd. This restriction may be " cat
+    "lifted in future versions.";
+  X2,X,mlt,axs := sym_da(n);
+  G := sub<Group(X)|AlternatingGroup(n)>;
+  X2 := Restriction(X2, G);
+  X := Restriction(X, G);
+  mlt := MapToMatrix(hom<X2->X|mlt>);
+  axs := X!Eltseq(axs);
+  k := (n div 4)*4;
+  H := sub<G|Reverse([1..k]) cat [k+1..n]>;
+  assert Dimension(sub<Restriction(X, H)|axs>) eq 1;
+  return AxialDecompositionAlgebra(mlt, axs, H);
+end intrinsic;
+
+intrinsic DihDA(n::RngIntElt) -> AxlDecAlg
+  {
+    Decomposition algebra built from the (n-1)-dimensional summand of the 
+    standard module for Alt(n). For now, n must be odd.
+  }
+  require IsOdd(n): "Argument 1 must be odd. This restriction may be " cat
+    "lifted in future versions.";
+  X2,X,mlt,axs := sym_da(n);
+  G := sub<Group(X)|DihedralGroup(n)>;
+  X2 := Restriction(X2, G);
+  X := Restriction(X, G);
+  mlt := MapToMatrix(hom<X2->X|mlt>);
+  axs := X!Eltseq(axs);
+  //k := (n div 4)*4;
+  k := (n-1) div 2;
+  s := [0] cat  Reverse([1..n-1]);
+  j := -2;
+  H := sub<G|[ ((i+j) mod n) + 1 : i in s ]>;
+  assert Dimension(sub<Restriction(X, H)|axs>) eq 1;
+  ADA :=  AxialDecompositionAlgebra(mlt, axs, H);
+  CB := Matrix(Sort([ Eltseq(a) : a in Axes(ADA) ])[1..n-1]);
+  CB := Matrix([ Eltseq((X!axs)*r) : r in sub<G|[2..n] cat [1]> ][2..n]);
+  return ChangeBasis(ADA, CB);
+end intrinsic;
+
+intrinsic SymDec(n::RngIntElt, i::RngIntElt, j::RngIntElt, k::RngIntElt)
+    -> SeqEnum
+  {}
+  require n gt 0: "Argument 1 must be positive integer.";
+  require i in {1..n}: "Argument 2 must be integer between 1 and argument 2.";
+  require j in {1..n}: "Argument 3 must be integer between 1 and argument 2.";
+  require k in {1..n}: "Argument 4 must be integer between 1 and argument 2.";
+  require #{i,j,k} eq 3: "Arguments 2, 3 and 4 must be distinct.";
+  V := KSpace(Rationals(), n-1);
+  a := [ V.l : l in [1..n-1] ];
+  Append(~a, -&+a);
+  pt1 := sub<V|a[i]>;
+  pt2 := sub<V|[ a[i] + (n-1)*a[l] : l in {1..n} diff {i,j,k} ]>;
+  pt3 := sub<V|a[j]-a[k]>;
+  return {@ pt1, pt2, pt3 @};
+end intrinsic;
+
+intrinsic Parts(D::Dec) -> SeqEnum
+  {}
+  el := Elements(FusionLaw(Parent(D)));
+  return [ Part(D, x) : x in el ];
+end intrinsic;
+
+intrinsic SymmetricGroupAxialDecompositionAlgebra(n::RngIntElt) -> AxlDecAlg
+  {
+    Axial decomposition algebra for the Sym(n).
+  }
+  require n gt 0: "Argument 1 must be a positive integer.";
+  A := New(AxlDecAlg);
+
+  QQ := Rationals();
+  alg := Algebra<QQ, (n-1) | 
+    &cat[ i eq j select [ <i,i,i, 1> ] else [ <i,j,i,1/(2-n)>, <i,j,j,1/(2-n)> ] 
+          : i in [1..(n-1)], j in [1..(n-1)] ]>;
+
+  A`algebra := alg;
+
+  FLA := AssociativeArray();
+  FLA["class"] := "Fusion law";
+  FLA["set"] := [1,2,3];
+  FLA["law"] := [ [ {1}, {2}, {3} ], [ {2}, {1,2}, {3} ], [ {3}, {3}, {1,2} ] ];
+  FLA["evaluation"] := [ 1, 1/(2-n), 1/(2-n) ];
+  FL := FusionLaw(FLA);
+  A`fusion_law := FL;
+
+  V := VectorSpace(A);
+  decs := AssociativeArray();
+  Sn := SymmetricGroup(n);
+  GS := GSet(Sn);
+  for i in GS do
+    ax := i lt n select V.i else -&+[ V.i : i in [1..(n-1)] ];
+    for j in {1..n-1} diff {i} do
+      for k in {j+1..n} diff {i} do
+        pts := SymDec(n, i, j, k);
+        decs[<i,Sn!(j,k)>] := AxialDecomposition(A, pts, ax);
+      end for;
+    end for;
+  end for;
+  
+  A`decompositions := decs; 
+  return A;
+end intrinsic; 
+
+//intrinsic KeepDecompositions(DA::DecAlg, keys::Set) -> DecAlg
+//  {}
+//  D := Decompositions(DA);
+//  K := Keys(D);
+//  rem := K diff keys;
+//  return RemoveDecompositions(DA, rem);
+//end intrinsic;
+
+intrinsic KeepDecompositions(A::DecAlg, I::.) -> DecAlg
+  {
+    Keep only the decompositions in I and in the given order.
+  }
+  A := CopyDecompositionAlgebra(A);
+  Decs := Decompositions(A);
+  IS := {@ i : i in I @};
+  newdecs := AssociativeArray(IS);
+  for i in I do
+    newdecs[i] := Decs[i];
+  end for;
+  A`decompositions := newdecs;
+  return A;
+end intrinsic;
+
+intrinsic X(DA) -> .
+  {}
+  axs := [ DA.1, DA.2, DA.3, DA.4, -DA.1-DA.2-DA.3-DA.4 ];
+  axs := axs[[5,1,3,4,2]];
+  assert {x:x in axs} eq Axes(DA);
+  el := Elements(FusionLaw(DA));
+  orders := [];
+  for i in [1..5] do
+    D := [* D[k] : k in Keys(D), D in [Decompositions(DA)] | Axis(D[k]) eq axs[i] *][1];
+    if i eq 1 then
+      order := [2,3,4,5];
+      VSWB := VectorSpaceWithBasis([ Vector(Eltseq(axs[b])) : b in order ]);
+      oneparts := [ Rows(EchelonForm(Matrix([ Coordinates(VSWB, b) : b in Basis(Part(D,e)) ]))) : e in el ];
+    end if;
+    Append(~orders, {Parent([1,2,3,4])|});
+    for order in Permutations({1..5}, 4) do
+      VSWB := VectorSpaceWithBasis([ Vector(Eltseq(axs[b])) : b in order ]);
+      thisparts := [ Rows(EchelonForm(Matrix([ Coordinates(VSWB, b) : b in Basis(Part(D,e)) ]))) : e in el ];
+      if oneparts eq thisparts then
+        Include(~(orders[#orders]), [(x-i)mod 5:x in order]);
+      end if;
+    end for;
+  end for;
+  //for i in [1..4] do
+  //  for j in [i+1..5] do
+  //    i,j,#(orders[i] meet orders[j]);
+  //  end for;
+  //end for;
+  return [ Sort(Setseq(x)) : x in orders ];
+end intrinsic;
+
+intrinsic UseAxialBasis(DA::AxlDecAlg, I::SeqEnum) -> DecAlg
+  {
+    Put the decompositions in the given order and use the axes as a basis.
+  }
+  decs := Decompositions(DA);
+  basis := [];
+  V := VectorSpace(DA);
+  spc := sub<V|>;
+  for i in I do
+    ax := Vector(Eltseq(Axis(decs[i])));
+    if ax notin spc then
+      Append(~basis, ax);
+      spc := sub<V|spc, ax>;
+    end if;
+  end for;
+  require V eq spc: "Axes must form a basis for the algebra.";
+  CB := Matrix(basis);
+  nDA := KeepDecompositions(ChangeBasis(DA, CB), I);
+  return nDA;
 end intrinsic;

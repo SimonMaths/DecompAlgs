@@ -19,6 +19,7 @@ intrinsic CharacterGroup(G::Grp, R::Rng) -> Grp, Map
   }
   A,a := AbelianQuotient(G);
   MG,mg := MultiplicativeGroup(R);
+  MG := sub<MG|[ i : i in Generators(MG) | Order(i) ne 0]>;
   H,h := Hom(A,MG);
   mp := map<G->R|g:->R!0>;
   return H, map< H -> Parent(mp) | x:-> map<G -> R| g:-> g@a@h(x)@mg > >;
@@ -137,7 +138,6 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
       vprintf DecompAlgsGrp: "done]\n";
     else
       vprintf DecompAlgsGrp: "    Map to perm group has non-trivial kernel: using standard techniques:\n";
-      return smallMtoP;
       A`Miyamoto_group, A`Miyamoto_map :=  matgrp_to_permgrp(smallM);
     end if;
   end if;
@@ -186,17 +186,32 @@ intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt
   {
     Returns whether or not A is Miyamoto closed with respect to the character x.
   }
+  if ISA(Type(A), AxlDecAlg) then
+    isaxl := true;
+  else
+    isaxl := false;
+  end if;
   CG, cg := CharacterGroup(A);
   IS := IndexedSet(IndexSet(A));
   X := Elements(FusionLaw(A));
   Ds := [* Decompositions(A)[i] : i in IS *];
-  DVS := [ [ Part(D,x) : x in X ] : D in Ds ];
-  OriginalBases := {* [ Basis(VS) : VS in DVSi ]:DVSi in DVS *};
+  if isaxl then
+    DVS := [ <Vector(Eltseq(Axis(D))),[ Part(D,x) : x in X ]> : D in Ds ];
+    OriginalBases := {* <DVSi[1],[ Basis(VS) : VS in DVSi[2] ]> :DVSi in DVS *};
+  else
+    DVS := [ [ Part(D,x) : x in X ] : D in Ds ];
+    OriginalBases := {* [ Basis(VS) : VS in DVSi ]:DVSi in DVS *};
+  end if;
   for idx in [1..#IS] do
     i := IS[idx];
     M := MiyamotoAction(A, MiyamotoElement(A, i, x));
-    DVSM := [ [ P*M : P in Ps ] : Ps in DVS ];
-    NewBases := {* [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM*};
+    if isaxl then
+      DVSM := [ <Ps[1]*M,[ P*M : P in Ps[2] ]> : Ps in DVS ];
+      NewBases := {* <DVSMi[1],[ Basis(VS) : VS in DVSMi[2] ]>:DVSMi in DVSM *};
+    else
+      DVSM := [ [ P*M : P in Ps ] : Ps in DVS ];
+      NewBases := {* [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM*};
+    end if;
     if OriginalBases ne NewBases then 
       return false, NewBases diff OriginalBases;
     end if;
@@ -224,6 +239,11 @@ intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg
     Returns a Miyamoto closed version of A by adding additional decompositions 
       if needed.
   }
+  if ISA(Type(A), AxlDecAlg) then
+    isaxl := true;
+  else
+    isaxl := false;
+  end if;
   A :=  StandardCopy(A);
   cnt := #Keys(Decompositions(A));
   isclosed, extra := IsMiyamotoClosed(A);
@@ -231,8 +251,14 @@ intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg
   while not isclosed do
     for x in extra do
       cnt +:= 1;
-      parts := {@ sub< vs | xx > : xx in x @};
-      (A`decompositions)[cnt] := Decomposition(A, parts);
+      if isaxl then
+        axis := VectorSpace(A)!x[1];
+        parts := {@ sub< vs | xx > : xx in x[2] @};
+        (A`decompositions)[cnt] := AxialDecomposition(A, parts, axis);
+      else
+        parts := {@ sub< vs | xx > : xx in x @};
+        (A`decompositions)[cnt] := Decomposition(A, parts);
+      end if;
     end for;
     isclosed, extra := IsMiyamotoClosed(A);
   end while;
