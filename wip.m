@@ -1715,10 +1715,10 @@ end intrinsic;
 intrinsic SymDec(n::RngIntElt, i::RngIntElt, j::RngIntElt, k::RngIntElt)
     -> SeqEnum
   {}
-  require n gt 0: "Argument 1 must be positive integer.";
-  require i in {1..n}: "Argument 2 must be integer between 1 and argument 2.";
-  require j in {1..n}: "Argument 3 must be integer between 1 and argument 2.";
-  require k in {1..n}: "Argument 4 must be integer between 1 and argument 2.";
+  require n gt 0: "Argument 1 must be a positive integer.";
+  require i in {1..n}: "Argument 2 must be integer between 1 and argument 1.";
+  require j in {1..n}: "Argument 3 must be integer between 1 and argument 1.";
+  require k in {1..n}: "Argument 4 must be integer between 1 and argument 1.";
   require #{i,j,k} eq 3: "Arguments 2, 3 and 4 must be distinct.";
   V := KSpace(Rationals(), n-1);
   a := [ V.l : l in [1..n-1] ];
@@ -1726,6 +1726,32 @@ intrinsic SymDec(n::RngIntElt, i::RngIntElt, j::RngIntElt, k::RngIntElt)
   pt1 := sub<V|a[i]>;
   pt2 := sub<V|[ a[i] + (n-1)*a[l] : l in {1..n} diff {i,j,k} ]>;
   pt3 := sub<V|a[j]-a[k]>;
+  return {@ pt1, pt2, pt3 @};
+end intrinsic;
+
+intrinsic DihDec(n::RngIntElt, i::RngIntElt)
+    -> SeqEnum
+  {}
+  require n gt 0 and IsOdd(n): "Argument 1 must be an odd positive integer.";
+  require i in {1..n}: "Argument 2 must be integer between 1 and argument 1.";
+  V := KSpace(Rationals(), n-1);
+  k := (n-1) div 2;
+
+  //The axes
+  a := [ V.l : l in [1..n-1] ];
+  Append(~a, -&+a);
+
+  //Reorder starting with (i+1)
+  a := a[[i+1..n] cat [1..i]];
+
+  // this axis
+  pt1 := sub<V|a[n]>;
+
+  // Difference of pairs of swapped axis: eg. a_1+a_{n-1} - (a_2+a_{n-2}) 
+  pt2 := sub<V|[ a[1] + a[n-1] - a[l] - a[n-l] : l in {1..k} ]>;
+
+  // Difference of swapped axes: eg. a_1 - a_{n-1}
+  pt3 := sub<V|[ a[l] - a[n-l] : l in {1..k} ]>;
   return {@ pt1, pt2, pt3 @};
 end intrinsic;
 
@@ -1775,6 +1801,43 @@ intrinsic SymmetricGroupAxialDecompositionAlgebra(n::RngIntElt) -> AxlDecAlg
   return A;
 end intrinsic; 
 
+intrinsic DihedralGroupAxialDecompositionAlgebra(n::RngIntElt) -> AxlDecAlg
+  {
+    Axial decomposition algebra for the Sym(n).
+  }
+  require n gt 0 and IsOdd(n): "Argument 1 must be an odd positive integer.";
+  A := New(AxlDecAlg);
+
+  QQ := Rationals();
+  alg := Algebra<QQ, (n-1) | 
+    &cat[ i eq j select [ <i,i,i, 1> ] else [ <i,j,i,1/(2-n)>, <i,j,j,1/(2-n)> ] 
+          : i in [1..(n-1)], j in [1..(n-1)] ]>;
+
+  A`algebra := alg;
+
+  // Perhaps this should be calculated in future?
+  FLA := AssociativeArray();
+  FLA["class"] := "Fusion law";
+  FLA["set"] := [1,2,3];
+  FLA["law"] := [ [ {1}, {2}, {3} ], [ {2}, {1,2}, {3} ], [ {3}, {3}, {1,2} ] ];
+  FLA["evaluation"] := [ 1, 1/(2-n), 1/(2-n) ];
+  FL := FusionLaw(FLA);
+  A`fusion_law := FL;
+
+  V := VectorSpace(A);
+  decs := AssociativeArray();
+  Sn := SymmetricGroup(n);
+  GS := GSet(Sn);
+  for i in GS do
+    ax := i lt n select V.i else -&+[ V.i : i in [1..(n-1)] ];
+    pts := DihDec(n, i);
+    decs[i] := AxialDecomposition(A, pts, ax);
+  end for;
+  
+  A`decompositions := decs; 
+  return A;
+end intrinsic; 
+
 //intrinsic KeepDecompositions(DA::DecAlg, keys::Set) -> DecAlg
 //  {}
 //  D := Decompositions(DA);
@@ -1789,10 +1852,9 @@ intrinsic KeepDecompositions(A::DecAlg, I::.) -> DecAlg
   }
   A := CopyDecompositionAlgebra(A);
   Decs := Decompositions(A);
-  IS := {@ i : i in I @};
-  newdecs := AssociativeArray(IS);
-  for i in I do
-    newdecs[i] := Decs[i];
+  newdecs := AssociativeArray();
+  for i in [1..#I] do
+    newdecs[i] := Decs[I[i]];
   end for;
   A`decompositions := newdecs;
   return A;
