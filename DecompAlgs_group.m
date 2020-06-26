@@ -179,7 +179,7 @@ intrinsic MiyamotoPermutation(A::DecAlg, i::., x::GrpElt) -> GrpElt
   NewBases := [ [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM ];
   isit, perm := IsPermutation(OriginalBases, NewBases);
   require isit: "A is not Miyamoto closed with respect to given element.";
-  return sym!perm;
+  return sym!IS[perm];
 end intrinsic;
 
 intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt
