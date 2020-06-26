@@ -452,6 +452,13 @@ intrinsic IsCoercible(A::DecAlg, x::.) -> BoolElt, .
   return false, "Illegal coercion.";
 end intrinsic;
 
+intrinsic Vector(v::DecAlgElt) -> ModTupRngElt
+  {
+  Returns v as an element of the vector space.
+  }
+  return VectorSpace(Parent(v))!Eltseq(v);
+end intrinsic;
+
 /*
 
 ======= Operations on the elements =======
