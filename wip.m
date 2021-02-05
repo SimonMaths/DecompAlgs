@@ -1097,13 +1097,29 @@ intrinsic Multiplication(A::Alg) -> .
   }
   V := VectorSpace(A);
   d := Dimension(V);
-  T := TensorProduct(V,V);
+  B := Basis(A);
   M := Matrix(BaseRing(A), d*d, d, 
-    [ Eltseq(A.ij[1]*A.ij[2]) : ij in [tns_idx_pair(d,idx)], idx in [1..d*d] ]);
+    [ Eltseq(B[ij[1]]*B[ij[2]]) : ij in [tns_idx_pair(d,idx)], idx in [1..d*d] ]);
   return M;
 end intrinsic; 
 
-intrinsic IsIsomorphic(A::Alg, B::Alg) -> BoolElt, Mtrx
+intrinsic Multiplication(A::AlgMat) -> .
+  {}
+  d := Dimension(A);
+  R := BaseRing(A);
+  V := VectorSpace(R, d);
+  if ISA(Type(A), AlgMat) then
+    vec := func<x|Vector(Coordinates(A, x))>;
+  else
+    vec := func<x|Vector(Eltseq(x))>;
+  end if;
+  B := Basis(A);
+  M := Matrix(R, d*d, d,
+    [ vec(B[ij[1]]*B[ij[2]]) : ij in [tns_idx_pair(d,idx)], idx in [1..d*d] ]);
+  return M;
+end intrinsic;
+
+intrinsic IsIsomorphic(A::Alg, B::Alg: extendfield := false) -> BoolElt, Mtrx
   {
     Return if the algebras are isomorphic and if so a basis change matrix.
   }
