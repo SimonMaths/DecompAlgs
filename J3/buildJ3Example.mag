@@ -45,9 +45,7 @@ T2 := [ m : m in DirectSumDecomposition(R2) | Dimension(m) eq 1 ][1];
 x := M1!R1!T1.1;
 y := M2!R2!T2.1;
 
-
 thisO := [];
-
 
 "Starting outer loop:";
 for a in F do
