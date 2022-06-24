@@ -1,0 +1,109 @@
+function SMMat(M);
+  return Submatrix(M, 1, 1,10,10);
+end function;
+
+function PMMat(M,m)
+  M := ChangeRing(M,Integers());
+  Melts := Eltseq(M);
+  NewElts := [ x lt m/2 select x else x-m : x in Melts ];
+  return Matrix(Nrows(M), Ncols(M), NewElts);
+end function;
+
+function PMElt(M,m)
+  M := ChangeUniverse(M,Integers());
+  NewElts := [ x lt m/2 select x else x-m : x in M ];
+  return NewElts;
+end function;
+
+function CRTMat(M,N,m,n)
+  M := ChangeRing(M, Integers());
+  N := ChangeRing(N, Integers());
+  Melts := Eltseq(M);
+  Nelts := Eltseq(N);
+  NewElts := [ ChineseRemainderTheorem([Melts[i],Nelts[i]], [m,n]) : i in [1..#Melts] ];
+  NewElts := [ x lt m*n/2 select x else x-m*n : x in NewElts ];
+  return Matrix(Nrows(M), Ncols(M), NewElts);
+end function;
+
+function CRTElt(M,N,m,n)
+  M := ChangeUniverse(M, Integers());
+  N := ChangeUniverse(N, Integers());
+  NewElts := [ ChineseRemainderTheorem([M[i],N[i]], [m,n]) : i in [1..#M] ];
+  NewElts := [ x lt m*n/2 select x else x-m*n : x in NewElts ];
+  return NewElts;
+end function;
+
+//function CompareMat(M,N)
+//  return Nrows(M)*Ncols(M)-NNZEntries(M-N); 
+//end function;
+
+function MatchedPositions(M,N)
+  return [ i : i in [1..#M] | M[i] eq N[i] ]; 
+end function;
+
+function RandomRationalSequence(n, m, num, den)
+  R1 := RandomGLnZ(n, m, num);
+  R2 := RandomGLnZ(n, m, den);
+  M := Matrix(n, n, [ R1[i,j] / (R2[i,j] eq 0 select 1 else R2[i,j]) :
+                  i in [1..n], j in [1..n] ]);
+  return Eltseq(M);
+end function;
+
+function EltReductions(M, max_p)
+  Mp := [**];
+  good_p := [];
+  bad_p := [];
+  for p in PrimesUpTo(max_p) do
+    try
+      Append(~Mp, ChangeUniverse(M, GF(p)));
+      Append(~good_p, p);
+    catch e 
+      Append(~bad_p, p);
+    end try;
+  end for;
+  return Mp, good_p, bad_p;
+end function;
+
+function FindCRT(Mp, good_p)
+  curr_p := good_p[1];
+  x_old := PMElt(Mp[1], curr_p);
+  matched := [];
+  for i in [2..#good_p] do
+    x_new := CRTElt(x_old, Mp[i], curr_p, good_p[i]);
+    curr_p *:= good_p[i];
+    Append(~matched, MatchedPositions(x_new,x_old));
+    x_old := x_new;
+  end for;   
+  // Change how we check what is matched (has it converged)
+  return x_new, matched;
+end function;
+
+function FindCRTWithBad(Mp, good_p: upperbound := 1000000);
+  X := [];
+  allMatched := {};
+  lastcount := 0;
+  for mult in [1..Min(&*good_p, upperbound)] do
+    if exists{ f : f in Factorization(mult) | f[1] in good_p } then 
+      continue;
+    end if;
+    ourMp := [* [ i in allMatched select 0 else L[i]*mult : i in [1..#L] ] : 
+                    L in Mp *];
+    x, matched := FindCRT(ourMp, good_p);
+    matched := &meet[ Set(matched[i]) : i in [#matched-2..#matched] ];
+    for i in matched do
+      if i notin allMatched then
+        X[i] := x[i]/mult;
+        Include(~allMatched, i);
+      end if;
+    end for;
+    if #allMatched gt lastcount then 
+      lastcount := #allMatched;
+      lastcount, mult;
+    end if;
+    if #allMatched eq #x then
+      break;
+    end if; 
+  end for;
+  return X, allMatched;
+end function;
+

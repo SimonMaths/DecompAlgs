@@ -1,16 +1,28 @@
-load "~/FT.mag";
+load "FT.mag";
 
-F := GF(11);
+orderJ3 := Order(Group("J3"));
+
+// Gather the Os
+O := [**];
+//orders := [ i : i in [2..200] | IsPrimePower(i) and GCD(i,orderJ3) eq 1 ];
+
+order := 500;
+while true do
+order := NextPrime(order);
+
+"Processing order:",order;
+F := GF(order);
+
 X := GetJ3(F);
 G := Group(X);
-CC:= ConjugacyClasses(G);
+//CC:= ConjugacyClasses(G);
 
 DSD := DirectSumDecomposition(X);
-assert #DSD eq 2;
+if #DSD ne 2 then order,"is not good."; continue; end if;
 M1,M2 := Explode(DSD);
 "Calculating symmetric squares:";
-time SS1 := SymmetricSquare(M1);
-time SS2 := SymmetricSquare(M2); 
+SS1 := SymmetricSquare(M1);
+SS2 := SymmetricSquare(M2); 
 "Calculating mults:";
 time mu1 := GHom(SS1, M2).1;
 time mu2 := GHom(SS2, M1).1;
@@ -20,7 +32,10 @@ bas2 := Basis(M2);
 
 T := Matrix([ X!be : be in bas1 ] cat [ X!be : be in bas2 ]);
 
-H := Centralizer(G, CC[4][3]);
+
+//H := Centralizer(G, CC[4][3]);
+a := G.1; b := G.2;
+H := Centralizer(G, (a*b*a*b*b)^3);
 
 R1 := Restriction(M1,H);
 R2 := Restriction(M2,H);
@@ -30,42 +45,43 @@ T2 := [ m : m in DirectSumDecomposition(R2) | Dimension(m) eq 1 ][1];
 x := M1!R1!T1.1;
 y := M2!R2!T2.1;
 
-MPs := {};
+thisO := [];
 
-"Starting loop:";
+"Starting outer loop:";
 for a in F do
   if IsZero(a) then continue; end if;
-for b in F do
-  if IsZero(b) then continue; end if;
-c := F!1;
-d := F!1;
-//for c in F do
-//  if IsZero(c) then continue; endif;
-//for d in F do
-//  if IsZero(d) then continue; endif;
+  "    starting inner loop:";
+  cpt := Cputime();
+  for b in F do
+    if IsZero(b) then continue; end if;
 
-  adj_ax := 
-    T^-1*Matrix([ X!(Vector(SymmetricProduct(a*x, be))*c*mu1) : be in bas1 ] cat
-           [ X!(Vector(SymmetricProduct(b*y, be))*d*mu2) : be in bas2 ]);
+    adj_ax := 
+      T^-1*Matrix([ X!(Vector(SymmetricProduct(a*x, be))*mu1) : be in bas1 ] cat
+             [ X!(Vector(SymmetricProduct(b*y, be))*mu2) : be in bas2 ]);
 
-  SF<t> := SplittingField(MinimalPolynomial(adj_ax));
-  ad := ChangeRing(adj_ax, SF);
+    // Only take the ones with a one in the top left
+    if adj_ax[1,1] ne 1 then continue; end if;
+    //if adj_ax[1,1] eq 1 then SMMat(adj_ax);""; end if;
 
-  JF := JordanForm(ad);
-  if not IsDiagonal(JF) then
-    [a,b,c,d];
-  end if;
+    //SF<t> := SplittingField(MinimalPolynomial(adj_ax));
+    //ad := ChangeRing(adj_ax, SF);
 
-  num := #MPs;
-  MPs := { MinimalPolynomial(ad) } join MPs;
-  if num ne #MPs then
-    MPs;
-    for x in MPs do
-      Factorization(x);
-    end for;
-  end if;
+    //JF := JordanForm(ad);
+    //if IsDiagonal(JF) then
 
+    ev := { x[1] : x in Eigenvalues(adj_ax) };
+    if {1,-1} subset ev then
+      thisO := thisO cat [ adj_ax ];
+    end if;
+
+    //end if;
+
+  end for;
+  "    time=",Cputime(cpt);
 end for;
-end for;
-//end for;
-//end for;
+
+PrintFileMagma(Sprintf("O%o", order), thisO: Overwrite := true);
+Append(~O, thisO);
+
+end while;
+

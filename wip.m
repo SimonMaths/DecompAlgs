@@ -9,17 +9,51 @@ intrinsic AxialAlgebra(name::MonStgElt) -> ParAxlAlg
   return LoadPartialAxialAlgebra("~/magma/AxialAlgebras/library/Monster_1,4_1,32/RationalField\(\)/basic_algebras/" cat name cat ".json");
 end intrinsic;
 
+intrinsic JordanAlgebra(n::RngIntElt, R::Rng) -> Alg
+  {
+    Jordan algbera of n x n matrices over k.
+  }
+  k := R;
+  error if Characteristic(k) eq 2, "Field must be have characteristic different 
+    from 2.";
+  M := MatrixAlgebra(k,n);
+  SS := [];
+  TT := [];
+  for B in Basis(M) do
+    S := [];
+    T := [];
+    for A in Basis(M) do
+      ABBA := (A*B + B*A)/2;
+      tr := Trace(ABBA);
+      Append(~S, Eltseq(ABBA));
+      Append(~T, tr);
+    end for;
+    Append(~SS, S);
+    Append(~TT, T); 
+  end for;
+  return Algebra< k, Dimension(M) | SS : Rep := "Sparse" >, Matrix(k, TT);
+end intrinsic;
+
 intrinsic JordanAlgebra(n::RngIntElt, q::RngIntElt) -> Alg
   {
     Jordan algbera of n x n matrices over k.
   }
   k := GF(q);
-  error if Characteristic(k) eq 2, "Field must be have characteristic different 
-    from 2.";
-  M := MatrixAlgebra(k,n);
-  return Algebra< k, n^2 | [ [ Eltseq((A*B+B*A)/2) : A 
-    in Basis(M) ] : B in Basis(M) ] : Rep := "Sparse" >;
+  return JordanAlgebra(n, k);
 end intrinsic;
+
+intrinsic JordanAlgebra(MS::ModMatFld) -> Alg
+  {
+    Jordan algebra generated with the given matrix space.
+  }
+  rep := Rep(MS);
+  n := Nrows(rep);
+  error if n ne Ncols(rep), "Algebra requires square matrices";
+  J,f := JordanAlgebra(n, BaseRing(MS));
+  M := sub< J | [ Eltseq(b) : b in Basis(MS) ] >;
+  B := Matrix([ Eltseq(J!b) : b in Basis(M) ]); 
+  return M, B*f*Transpose(B);
+end intrinsic; 
 
 intrinsic PrimitiveIdempotentsOfJordanAlgebra(J::Alg) -> SetEnum
   {
@@ -293,8 +327,6 @@ intrinsic MultiplicationsAndAssociatingForms(X::ModGrp: Commutative := false)
   multvars := [ P.i : i in [1..#multbasis] ];
   formvars := [ P.(#multbasis+i) : i in [1..#formbasis] ];
 
-  formhoms := KMatrixSpace(formbasis);
-  formhoms := KMatrixSpace(formbasis);
   multbasis := [ Matrix(BaseRing(P), Nrows(b), Ncols(b), Eltseq(b)) : b in multbasis ];
   formbasis := [ Matrix(BaseRing(P), Nrows(b), Ncols(b), Eltseq(b)) : b in formbasis ];
 
@@ -319,18 +351,20 @@ intrinsic MultiplicationsAndAssociatingForms(X::ModGrp: Commutative := false)
   I := ideal_nz_rel(I, &+[ f^2 : f in formvars ]);
   I := ideal_nz_rel(I, &+[ m^2 : m in multvars ]);
 
-  Inzf := ideal_nz_rel(I, &+[ f^2 : f in formvars ]);
+  //Inzf := ideal_nz_rel(I, &+[ f^2 : f in formvars ]);
   mults_with_forms := sub< multhoms | >;
-  multideal := proj_ideal(Inzf, multvars);
+  //multideal := proj_ideal(Inzf, multvars);
+  multideal := proj_ideal(I, multvars);
   pts := ideal_point_basis(multideal);
   for pt in pts do
     mults_with_forms +:= sub< multhoms | 
                         &+[ multbasis[i]*pt[i] : i in [1..#multbasis] ] >; 
   end for;
 
-  Inzm := ideal_nz_rel(I, &+[ m^2 : m in multvars ]);
+  //Inzm := ideal_nz_rel(I, &+[ m^2 : m in multvars ]);
   forms_with_mults := sub< formhoms | >;
-  formideal := proj_ideal(Inzm, formvars);
+  //formideal := proj_ideal(Inzm, formvars);
+  formideal := proj_ideal(I, formvars);
   pts := ideal_point_basis(formideal);
   for pt in pts do
     forms_with_mults +:= sub< formhoms | 
@@ -1926,4 +1960,25 @@ intrinsic UseAxialBasis(DA::AxlDecAlg, I::SeqEnum) -> DecAlg
   CB := Matrix(basis);
   nDA := KeepDecompositions(ChangeBasis(DA, CB), I);
   return nDA;
+end intrinsic;
+
+intrinsic JordanProduct(A::Mtrx, B::Mtrx) -> Mtrx
+  {
+    1/2 ( AB + BA)
+  }
+  assert Nrows(A) eq Ncols(A) and Nrows(A) eq Nrows(B) and Nrows(A) eq Ncols(A);
+  return (1/2) * (A*B + B*A);
+end intrinsic; 
+
+intrinsic IsJordanAlgebra(A::AlgGen) -> BoolElt, AlgGenElt
+  {
+    Checks the Jordan identity (Justin has more code)
+  }
+  if not IsCommutative(A) then
+    print "Not commutative.";
+    return false;
+  end if;
+  return forall(t){ <a,b,c,d> : a,b,c,d in Basis(A) | 
+    ((a*b)*c)*d + ((b*d)*c)*a + ((d*a)*c)*b eq 
+    (a*b)*(c*d) + (b*d)*(c*a) + (d*a)*(c*b) };
 end intrinsic;

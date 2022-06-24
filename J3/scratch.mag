@@ -1,0 +1,89 @@
+//load "FT.mag";
+//X := GetJ3(Rationals());
+//SS:= SymmetricSquare(X);
+//
+//load "SStoX_Rat";
+//
+//P<t> := PolynomialRing(Rationals());
+//f := t^9 - (7/2)*t^7 + 4*t^5 - (109/72)*t^3 + (1/72)*t; 
+//F := SplittingField(f);
+//
+//G := Group(X);
+//a := G.1;
+//b := G.2;
+//H := Centralizer(G, (a*b*a*b*b)^3);
+//R := Restriction(X, H);
+//T := PermutationModule(H, H, Rationals());
+//TtoR := GHom(T, R);
+//Ts := [ Image(TtoR.1), Image(TtoR.2) ];
+//
+//num_sf := AssociativeArray();
+rng := {-15..15};
+minnum := Min([10000] cat [num_sf[k][1] : k in Keys(num_sf)]);
+rnglam := [ x : x in rng | not IsZero(x) ];
+rngmu  := [ x : x in rng ];
+zinmu  := Index(rngmu, 0) gt 0 select 1 else 0;
+total := (#rnglam)^2*((#rngmu)^2 - zinmu);
+while minnum gt 0 and #Keys(num_sf) lt total do
+//for lambda in [-10..10] do
+  lambda1 := Random(rng);
+  lambda2 := Random(rng);
+  if lambda1 eq 0 and lambda2 eq 0 then continue; end if;
+  //if lambda eq 0 then continue; end if;
+  //lambda := 1; // Choice of axis (up to scaling)
+  axis := lambda1*Ts[1].1 + lambda2*Ts[2].1;
+
+  //for mu1 in [-10..10] do
+  //  for mu2 in [-10..10] do
+  mu1 := Random(rng);
+  mu2 := Random(rng);
+  if mu1 eq 0 and mu2 eq 0 then continue; end if;
+  key := <lambda1,lambda2,mu1,mu2>;
+  if key in Keys(num_sf) then continue; end if;
+      //mu1 := 0; mu2 := 1; // Choice of multiplication
+      mult := mu1*SStoX_Rat.1 + mu2*SStoX_Rat.2;
+
+      symprods := 
+        Matrix([ SymmetricProduct(axis, bas_elt) : bas_elt in Basis(X) ]);
+      adj_axis := symprods*mult;
+
+      mp := MinimalPolynomial(adj_axis);
+      cf2 := Coefficients(mp)[8];
+      
+      sfn := SquareFreeFactorization(Numerator(cf2));
+      sfd := SquareFreeFactorization(Denominator(cf2));
+
+      fac_n := [ x[1] : x in Factorization(sfn) ];
+      fac_d := [ x[1] : x in Factorization(sfd) ];
+
+      val := <#fac_n + #fac_d, fac_n cat fac_d>;
+      num_sf[key] := val;
+      if val[1] lt minnum then minnum := val[1]; end if;
+      "Checked",#Keys(num_sf),"of",total;
+      "  - this has",val[1];
+      "  - best so far has",minnum;
+      "";
+
+  //  end for;
+  //end for;
+//end for; 
+end while;
+
+"Min square roots needed",x where x is Min([ num_sf[k][1] : k in Keys(num_sf) ]);
+
+
+
+/*
+ * <1, 5, 3, 7>, <1, [ 283 ]>
+ * <1, -3, -3, -7>, <1, [ 139 ]>
+ * <1, 6, -3, -7>, <1, [ 686971 ]>
+ * <1, 10, -3, -7>, <1, [ 1961963 ]>
+ * <1, 4, 3, 7>, <1, [ 251 ]>
+ * <1, 10, 3, 7>, <1, [ 1961963 ]>
+ * <1, 4, -3, -7>, <1, [ 251 ]>
+ * <1, -2, -3, -7>, <1, [ 200987 ]>
+ * <1, 5, -3, -7>, <1, [ 283 ]>
+ * <1, -3, 3, 7>, <1, [ 139 ]>
+ * <1, -2, 3, 7>, <1, [ 200987 ]>
+ * <1, 6, 3, 7>, <1, [ 686971 ]>
+ */
