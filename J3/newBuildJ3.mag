@@ -1,0 +1,70 @@
+load "FT.mag";
+"Loading mults [~15s]";
+t := Realtime();
+load "SStoX_Rat";
+"Time :",Realtime(t);
+
+"Getting X";
+X := GetJ3(Rationals());
+"Generating symmetric square [~25s]";
+time SS := SymmetricSquare(X);
+
+mu1 := SStoX_Rat.1;
+mu2 := SStoX_Rat.2;
+
+"Getting groups H < G";
+G := Group(X);
+a := G.1; b := G.2;
+H := Centralizer(G, (a*b*a*b*b)^3);
+
+"Restricting module";
+R := Restriction(X,H);
+
+"Getting axes";
+T := GModule(H, [Matrix(BaseRing(R), [[1]]):i in [1..NumberOfGenerators(H)]]);
+TtoR := GHom(T,R);
+
+x := X!R!Image(TtoR.1).1;
+y := X!R!Image(TtoR.2).1;
+
+for j in [1..1] do
+  "Axis is x +",j,"* y";
+  ax := x+j*y;
+
+  "  Building adjoint part 1 [~8s]";
+  adjinc := Matrix([SS!Vector(SymmetricProduct(ax, b)) : b in Basis(X)]);
+
+  P<t> := PolynomialRing(Rationals());
+
+  for i in [<1,0>] do //,<0,1>,<1,1>] do
+    mu := i[1]*mu1 + i[2]*mu2;
+    adj_ax := adjinc*mu;
+    mp := MinimalPolynomial(adj_ax);
+    mp_coeffs := Coefficients(mp);
+    assert forall{ x : x in mp_coeffs[1..#mp_coeffs by 2] | IsZero(x) };
+    newmp := P!mp_coeffs[2..#mp_coeffs by 2];
+    roots := Roots(newmp);
+    assert #roots eq 1;
+    QQ := SplittingField(t^2 - 72/roots[1][1]);
+    adj_ax_normed := ChangeRing(adj_ax, QQ)*QQ.1;
+    mp_normed := MinimalPolynomial(adj_ax_normed);
+    mp_normed_coeffs := Coefficients(mp_normed);
+    assert forall{ x : x in mp_normed_coeffs[1..#mp_normed_coeffs by 2] | IsZero(x) };
+    newmp_normed := P!mp_normed_coeffs[2..#mp_normed_coeffs by 2];
+    factnewmp := Factorization(newmp_normed);
+    " ",i,newmp_normed,factnewmp;
+
+    QQQ := SplittingField(mp);
+    roots := Roots(PolynomialRing(QQQ)!Coefficients(mp));
+    for rm in roots do
+      r := rm[1];
+      if not IsZero(r) then
+        r,":";
+        adj_r := ChangeRing(adj_ax, QQQ)/r;
+        mp_r := MinimalPolynomial(adj_r);
+        mp_r,Factorization(mp_r); 
+        "";
+      end if; 
+    end for;
+  end for;
+end for;

@@ -1,3 +1,28 @@
+function SMMat(M);
+  return Submatrix(M, 1, 1,10,10);
+end function;
+
+function PMMat(M,m)
+  M := ChangeRing(M,Integers());
+  Melts := Eltseq(M);
+  NewElts := [ x lt m/2 select x else x-m : x in Melts ];
+  return Matrix(Nrows(M), Ncols(M), NewElts);
+end function;
+
+function CRTMat(M,N,m,n)
+  M := ChangeRing(M, Integers());
+  N := ChangeRing(N, Integers());
+  Melts := Eltseq(M);
+  Nelts := Eltseq(N);
+  NewElts := [ ChineseRemainderTheorem([Melts[i],Nelts[i]], [m,n]) : i in [1..#Melts] ];
+  NewElts := [ x lt m*n/2 select x else x-m*n : x in NewElts ];
+  return Matrix(Nrows(M), Ncols(M), NewElts);
+end function;
+
+function CompareMat(M,N)
+  return Nrows(M)*Ncols(M)-NNZEntries(M-N); 
+end function;
+
 // ?: Changes eigenvalues (say) to 1 up counter
 function StandardFT(FT);
   S := Sort(Setseq(&join(&cat(FT))));
