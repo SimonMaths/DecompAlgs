@@ -4,16 +4,19 @@ orderJ3 := Order(Group("J3"));
 
 // Gather the Os
 O := [**];
-//orders := [ i : i in [2..200] | IsPrimePower(i) and GCD(i,orderJ3) eq 1 ];
+orders := [ i : i in [2..200] | IsPrimePower(i) and GCD(i,orderJ3) eq 1 ];
+startAfter := 1;
 
-order := 500;
-while true do
-order := NextPrime(order);
+for order in orders do
+if order le startAfter then continue; end if;
 
 "Processing order:",order;
 F := GF(order);
+XRat := GetJ3(Rationals());
+actMat := (&*ActionGenerators(XRat)[[1,2,1,2,2]])^3;
+_, T := JordanForm(actMat);
 
-X := GetJ3(F);
+X := GetJ3(F)^(T^-1);
 G := Group(X);
 //CC:= ConjugacyClasses(G);
 
@@ -45,13 +48,12 @@ T2 := [ m : m in DirectSumDecomposition(R2) | Dimension(m) eq 1 ][1];
 x := M1!R1!T1.1;
 y := M2!R2!T2.1;
 
+
 thisO := [];
 
-"Starting outer loop:";
+"Starting loop:";
 for a in F do
   if IsZero(a) then continue; end if;
-  "    starting inner loop:";
-  cpt := Cputime();
   for b in F do
     if IsZero(b) then continue; end if;
 
@@ -60,7 +62,7 @@ for a in F do
              [ X!(Vector(SymmetricProduct(b*y, be))*mu2) : be in bas2 ]);
 
     // Only take the ones with a one in the top left
-    if adj_ax[1,1] ne 1 then continue; end if;
+//    if adj_ax[1,1] ne 1 then continue; end if;
     //if adj_ax[1,1] eq 1 then SMMat(adj_ax);""; end if;
 
     //SF<t> := SplittingField(MinimalPolynomial(adj_ax));
@@ -69,19 +71,18 @@ for a in F do
     //JF := JordanForm(ad);
     //if IsDiagonal(JF) then
 
-    ev := { x[1] : x in Eigenvalues(adj_ax) };
-    if {1,-1} subset ev then
+ //   ev := { x[1] : x in Eigenvalues(adj_ax) };
+ //   if {1,-1} subset ev then
       thisO := thisO cat [ adj_ax ];
-    end if;
+ //   end if;
 
     //end if;
 
   end for;
-  "    time=",Cputime(cpt);
 end for;
 
-PrintFileMagma(Sprintf("O%o", order), thisO: Overwrite := true);
+PrintFileMagma(Sprintf("E%o", order), thisO: Overwrite := true);
 Append(~O, thisO);
 
-end while;
+end for;
 
