@@ -293,10 +293,10 @@ function ideal_point_basis(I);
   _, vs := Dimension(I);
   for v in vs do
     bi := I + ideal< P | P.v - 1, [ P.w : w in vs | w ne v ] >;
-      pts := ideal_point_basis(bi);
-      for pt in pts do
-        Append(~bas_elts, pt);
-      end for;
+    pts := ideal_point_basis(bi);
+    for pt in pts do
+      Append(~bas_elts, pt);
+    end for;
   end for;
   return bas_elts;
 end function;
@@ -1315,6 +1315,7 @@ intrinsic ProjectedEliminationIdeal(I::RngMPol, S::Set) -> RngMPol
   if IsEmpty(S) then
     return ideal<Q|>;
   end if;
+  // if S is { P.i, P.j, etc. } turn S into { i, j, etc. }
   if ISA(Type(Rep(S)), RngMPolElt) then
     Pvars := [ P.i : i in [1..Ngens(P)] ];
     newS := { Index(Pvars, s) : s in S };
