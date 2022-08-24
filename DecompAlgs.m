@@ -648,6 +648,61 @@ intrinsic FusionLaw(D::Dec) -> FusLaw
   return D`fusion_law;
 end intrinsic;
 
+intrinsic ComputeFusionLaw(D::Dec) -> FusLaw
+  {
+  Computes the fusion law for the decomposition.  Note that the fusion law saved for the decomposition should contain the computed one as a sublaw.
+  }
+  require IsAttached(D): "The decomposition is not attached to an algebra.";
+  A := Parent(D);
+  
+  nparts := NumberOfParts(D);
+  parts := [ Part(D,i) : i in [1..nparts]];
+
+  bas := [ Basis(U) : U in parts];
+  V := VectorSpaceWithBasis(&cat(bas));
+  
+  dimseq := Partition([1..Dimension(A)], [Dimension(U) : U in parts]);
+  dimseqold := [ [f..f+Dimension(parts[i])-1] where f := i eq 1 select 1 else Self(i-1)[#Self(i-1)]+1 : i in [1..nparts]];
+  assert dimseq eq dimseqold;
+
+  function Indicator(v)
+    coords := Coordinates(V, V!Eltseq(v));
+    return {@ i : i in [1..nparts] | not IsZero(coords[dimseq[i]]) @};
+  end function;
+
+  FL := New(FusLaw);
+  FL`set := IndexedSet([1..nparts]);
+  
+  FL`law := [[ {@ Universe(FL`set)| @} : i in [1..nparts] ] : i in [1..nparts] ];
+  
+  for i in [1..nparts] do
+    if IsCommutative(A) then
+      for j in [i..nparts] do
+        prods := [ (A!v)*(A!w) : v in bas[i], w in bas[j]];
+        FL`law[i,j] := &join[ Indicator(p) : p in prods];
+        FL`law[j,i] := FL`law[i,j];
+      end for;
+    else
+      // we are not commutative
+      for j in [1..nparts] do
+        prods := [ (A!v)*(A!w) : v in bas[i], w in bas[j]];
+        FL`law[i,j] := &join[ Indicator(p) : p in prods];
+      end for;
+    end if;
+  end for;
+
+  if IsAxial(D) then
+    a := A!Axis(D);
+    vects := [ Rep(U) : U in parts ];
+    av := [ a*A!v : v in vects ];
+    eigenvalues := [ av[i, r]/vects[i, r] where r is Rep(Support(vects[i])) : i in [1..nparts]];
+    f := map< FL`set -> BaseRing(A) | i:->eigenvalues[i], j:-> Position(eigenvalues,j)>;
+    AssignEvaluation(~FL, f);
+  end if;
+
+  return FL;
+end intrinsic;
+
 // Can we implement the following using [] notation
 intrinsic Part(D::Dec, x::FusLawElt) -> ModTupRng
   {

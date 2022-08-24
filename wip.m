@@ -6,7 +6,7 @@ intrinsic AxialAlgebra(name::MonStgElt) -> ParAxlAlg
   error if name notin {"2A","2B","3A","3C","4A","4B","5A","6A"},
     "Valid names are: 2A, 2B, 3A, 3C, 4A, 4B, 5A, 6A";
 
-  return LoadPartialAxialAlgebra("~/magma/AxialAlgebras/library/Monster_1,4_1,32/RationalField\(\)/basic_algebras/" cat name cat ".json");
+  return LoadPartialAxialAlgebra("~/AxialAlgebras/library/Monster_1,4_1,32/RationalField\(\)/basic_algebras/" cat name cat ".json");
 end intrinsic;
 
 intrinsic JordanAlgebra(n::RngIntElt, R::Rng) -> Alg
