@@ -1021,7 +1021,7 @@ intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp)
   X := Codomain(mult);
   G := Group(X);
   A := New(AxlDecAlg);
-  alg :=  Algebra<R, Dimension(X) | [ [ Eltseq(mult_with_map(x,y,mult)) 
+  alg :=  Algebra<R, Dimension(X) | [ [ Eltseq(mult_with_mtrx(x,y,mult)) 
                                      : y in Basis(X) ] : x in Basis(X) ] >;
   A`algebra := alg;
   V := VectorSpace(A);

@@ -1,3 +1,5 @@
+import "HelperFunctions.m":check_dim_of_TXorSX,mult_with_mtrx,mult_with_map,sym_pair_idx,tns_pair_idx,sym_idx_pair,tns_idx_pair,sym_trip_idx;
+
 intrinsic AxialAlgebra(name::MonStgElt) -> ParAxlAlg
   {
     Get the Norton-Sakuma algebra with the given name.
@@ -208,19 +210,6 @@ intrinsic UKrn(A::DecAlg) -> Grp, HomGrp
 end intrinsic;
 
 /* ==== Helper functions ==== */
-function mult_with_map(x, y, mp);
-  x := Vector(Eltseq(x));
-  y := Vector(Eltseq(y));
-  dx := Degree(x);
-  dy := Degree(y);
-  rm := Nrows(mp);
-  if rm eq dx*dy then
-    return mp(Domain(mp)!TensorProduct(x,y));
-  elif rm eq dx*(dx+1)/2 then
-    error if  dx ne dy, "x and y are not from the same space.";
-    return mp(Domain(mp)!SymmetricProduct(x,y));
-  end if;
-end function;
 
 intrinsic SymmetricProduct(v::ModTupRngElt, w::ModTupRngElt) -> ModTupRngElt
   {
@@ -326,9 +315,9 @@ intrinsic MultiplicationsAndAssociatingForms(X::ModGrp: Commutative := false)
     Xi := Vector(P, Eltseq(X.i));
     Xj := Vector(P, Eltseq(X.j));
     Xk := Vector(P, Eltseq(X.k));
-    ij := mult_with_map(Xi,Xj,mult);
-    jk := mult_with_map(Xj,Xk,mult);
-    for r in Eltseq(mult_with_map(ij,Xk,form)-mult_with_map(Xi,jk,form)) do
+    ij := mult_with_mtrx(Xi,Xj,mult);
+    jk := mult_with_mtrx(Xj,Xk,mult);
+    for r in Eltseq(mult_with_mtrx(ij,Xk,form)-mult_with_mtrx(Xi,jk,form)) do
       Append(~rels, r);
     end for;
   end for;
@@ -453,58 +442,6 @@ function S3_T_to_mult(s, isom);
   M := Domain(isom);
   DM:= Codomain(isom);
   return Matrix(BaseRing(M), Nrows(s) div Dimension(M), Dimension(M), Eltseq(s))*isom^-1;
-end function;
-
-function sym_pair_idx(d,ij);
-  i := ij[1];
-  j := ij[2];
-  b,c := Explode(Sort([Integers() | i,j]));
-  error if c gt d, "Index out of bounds.";
-  c -:= b;
-  b -:= 1;
-  bb := (d*(d+1) - (d-b)*(d-b+1))/2;
-  cc := c + 1;
-  idx := Integers()!(bb+cc);
-  return idx;
-end function;
-
-function tns_pair_idx(d,ij);
-  i := ij[1];
-  j := ij[2];
-  return (i-1)*d+j;
-end function;
-
-function sym_idx_pair(d,idx);
-  i := 0;
-  while idx gt d do
-    idx -:= d;
-    d -:= 1;
-    i +:= 1;
-    error if d le 0, "idx out of bounds.";
-  end while;
-  return <i+1,i+idx>;
-end function; 
-
-function tns_idx_pair(d,idx);
-  i := (idx-1) div d;
-  j := (idx-1) mod d;
-  return <i+1,j+1>;
-end function;
-
-function sym_trip_idx(d,ijk);
-  i := ijk[1];
-  j := ijk[2];
-  k := ijk[3];
-  a,b,c := Explode(Sort([Integers() | i,j,k]));
-  error if c gt d, "Index out of bounds.";
-  c -:= b;
-  b -:= a;
-  a -:= 1;
-  aa := (d*(d+1)*(d+2) - (d-a)*(d-a+1)*(d-a+2))/6;
-  bb := ((d-a)*(d-a+1) - (d-a-b)*(d-a-b+1))/2;
-  cc := c + 1;
-  idx := Integers()!(aa+bb+cc);
-  return idx;
 end function;
 
 function T3_S3(T3, S3, d);
@@ -776,10 +713,10 @@ intrinsic AxialMultiplicationIdeal(X::ModGrp, H::Grp, M::SeqEnum,
   mult := &+[ P.multvars[i]*multparts[i] : i in [1..#multvars] ];
 
   // Idempotent relations
-  rels cat:= [ r : r in Eltseq(mult_with_map(axis,axis,mult)-axis) ];
+  rels cat:= [ r : r in Eltseq(mult_with_mtrx(axis,axis,mult)-axis) ];
 
   // Calculate the adjoint action of axis
-  adjnt := Matrix([ Eltseq(mult_with_map(axis, Parent(axis)!v, mult)) : 
+  adjnt := Matrix([ Eltseq(mult_with_mtrx(axis, Parent(axis)!v, mult)) : 
     v in Basis(X) ]);
 
   // Eigenvalue relations
@@ -864,8 +801,8 @@ intrinsic AxialMultiplications(X::ModGrp, H::Grp, M::SeqEnum[ModMatFldElt]:
     mult := &+[ P.multvars[i]*ChangeRing(M[i],P) : i in [1..#M] ];
     names cat:= [ "mult_" cat IntegerToString(i) : i in [1..#M] ];
     varnum +:= #M;
-    rels cat:= [ r : r in Eltseq(mult_with_map(axis,axis,mult)-axis) ];
-    adjnt := Matrix([ Eltseq(mult_with_map(axis, Parent(axis)!v, mult)) : 
+    rels cat:= [ r : r in Eltseq(mult_with_mtrx(axis,axis,mult)-axis) ];
+    adjnt := Matrix([ Eltseq(mult_with_mtrx(axis, Parent(axis)!v, mult)) : 
       v in Basis(X) ]);
     idnty := Parent(adjnt)!1;
     zerty := Parent(adjnt)!0;
