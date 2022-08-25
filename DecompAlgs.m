@@ -187,21 +187,21 @@ end intrinsic;
 
 intrinsic CoefficientField(A::DecAlg) -> Rng
   {
-  "
+  The coefficient ring (or base ring) of the algebra.
   }
   return BaseRing(A);
 end intrinsic;
 
 intrinsic BaseRing(A::DecAlg) -> Rng
   {
-  "
+  The coefficient ring (or base ring) of the algebra.
   }
   return BaseRing(Algebra(A));
 end intrinsic;
 
 intrinsic BaseField(A::DecAlg) -> Rng
   {
-  "
+  The coefficient ring (or base ring) of the algebra.
   }
   return BaseRing(A);
 end intrinsic;
@@ -732,6 +732,12 @@ intrinsic FusionLaw(D::Dec) -> FusLaw
   return D`fusion_law;
 end intrinsic;
 
+intrinsic Parts(D::Dec) -> SeqEnum
+  {}
+  el := Elements(FusionLaw(Parent(D)));
+  return [ Part(D, x) : x in el ];
+end intrinsic;
+
 intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng]) -> FusLaw
   {
   Given an algebra and a sequence of subspaces which are a direct sum decomposition of the vector space, compute the fusion law.
@@ -835,7 +841,7 @@ intrinsic NumberOfParts(D::Dec) -> RngIntElt
 end intrinsic;
 intrinsic Nparts(D::Dec) -> RngIntElt
   {
-  "
+    Returns the number of parts in decomposition D.
   }
   return NumberOfParts(D);
 end intrinsic;
