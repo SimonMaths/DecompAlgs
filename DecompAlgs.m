@@ -39,6 +39,86 @@ forward CreateElement; // This is defined half-way down the file, but we want to
 ======= Additional utility functions =======
 
 */
+function mult_with_map(x, y, mp);
+  x := Vector(Eltseq(x));
+  y := Vector(Eltseq(y));
+  dx := Degree(x);
+  dy := Degree(y);
+  rm := Nrows(mp);
+  if rm eq dx*dy then
+    return mp(Domain(mp)!TensorProduct(x,y));
+  elif rm eq dx*(dx+1)/2 then
+    error if dx ne dy, "x and y are not from the same space.";
+    return mp(Domain(mp)!SymmetricProduct(x,y));
+  else
+    error "x and y are incompatible with mp, I don't know how to apply it.";
+  end if;
+end function;
+
+intrinsic IsotypicDecomposition(X::ModGrp) -> SeqEnum
+  {
+    Return the isotypic decomposition of X.
+  }
+  T := TrivialModule(Group(X), BaseRing(X));
+  D := DirectSumDecomposition(X);
+  _,ic := IsomorphismClasses([T] cat D);
+  return [ sub<X|D[c]> : c in [[i-1:i in x|i gt 1]], x in ic | #c gt 0 ];
+end intrinsic;
+
+intrinsic AdjointAction(a::AlgElt) -> Mtrx
+  {
+    Matrix giving the adjoint action -*a: A -> A.
+  }
+  A := Parent(a);
+  M := Matrix([ Eltseq(b*a) : b in Basis(A) ]);
+  return M;
+end intrinsic;
+
+intrinsic AdjointAction(a::DecAlgElt) -> Mtrx
+  {
+  }
+  return AdjointAction(a`elt);
+end intrinsic;
+
+intrinsic RemoveDuplicateDecompositions(A::DecAlg) -> DecAlg
+  {
+    Return a copy of A with duplicate decompositions removed. A decomposition is 
+    a duplicate if the parts are the same. If the decomposition is axial then 
+      the axis must also match. Note that a non-axial decomposition with parts 
+      identitcal to an axial decomposition will be removed.
+  }
+  IS := IndexSet(A);
+  decs := Decompositions(A);
+  fuselts := [ x : x in Elements(FusionLaw(A)) ];
+  lookup := AssociativeArray(); 
+  for idx in IS do
+    dec := decs[idx];
+    if IsAxial(dec) then
+      axis := Axis(dec);
+      isaxl := true;
+    else
+      axis := A!0;
+      isaxl := false;
+    end if;
+    parts := [ Basis(Part(dec, x)) : x in fuselts ];
+    val := <isaxl,axis,idx>;
+    if not parts in Keys(lookup) then
+      lookup[parts] := { val };
+    elif isaxl then
+      current := lookup[parts];
+      new := [ x : x in current | x[1] ];
+      axes := { x[2] : x in new };
+      if not axis in axes then
+        Append(~new, val);
+      end if;
+      lookup[parts] := new;
+    end if;
+  end for;
+  keep := { val[3] : val in lookup[key], key in Keys(lookup) };
+  remove := { x : x in IS } diff keep;
+  return RemoveDecompositions(A, remove);
+end intrinsic;
+
 
 
 // --------------------------------------------
@@ -907,6 +987,87 @@ intrinsic AxialDecompositionAlgebra(A::ParAxlAlg) -> DecAlg
   
   return Anew;
 end intrinsic;
+
+intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp) 
+    -> DecAlg
+  {
+    Creates an axial decomposition algebra from a multiplication and list of
+    axes.
+  }
+  R := BaseRing(mult);
+  X := Codomain(mult);
+  G := Group(X);
+  A := New(AxlDecAlg);
+  alg :=  Algebra<R, Dimension(X) | [ [ Eltseq(mult_with_map(x,y,mult)) 
+                                     : y in Basis(X) ] : x in Basis(X) ] >;
+  A`algebra := alg;
+  V := VectorSpace(A);
+  RX := Restriction(X, H);
+  IC := IsotypicDecomposition(RX);
+  Vic := [ sub<V| [V!Eltseq(RX!b):b in Basis(ic)]> : ic in IC ];
+  decs := [**];
+
+  parts := AssociativeArray();
+  adjnt := AdjointAction(A`algebra!Eltseq(ax));
+
+  for evd in Eigenvalues(adjnt) do
+    ev := evd[1];
+    d := evd[2];
+    Ve := sub<V|Eigenspace(adjnt, ev)>;
+    bas := [];
+    for i in [1..#Vic] do
+      vic := Vic[i];
+      vevic := Ve meet vic;
+      if Dimension(vevic) gt 0 then
+        parts[<i,ev>] := Basis(vevic);
+        bas cat:= Basis(vevic);
+        d -:= Dimension(vevic);
+      end if;
+    end for;
+    if d gt 0 then
+      EB := ExtendBasis(bas, Ve);
+      parts[<0,ev>] := sub<Ve|EB[[#bas+1..#EB]]>;
+    end if;
+  end for;
+
+  keys := [ k : k in Keys(parts) ];
+  p1 := [ i : i in [1..#keys] | keys[i][2] eq 1 ];
+  p0 := [ i : i in [1..#keys] | keys[i][2] eq 0 ];
+  po := [ i : i in [1..#keys] | i notin p1 and i notin p0 ];
+  ps1 := [ k[1] : k in keys[p1] ];
+  ps0 := [ k[1] : k in keys[p0] ];
+  pso := [ k[1] : k in keys[po] ];
+  ParallelSort(~ps1, ~p1);
+  ParallelSort(~ps0, ~p0);
+  ParallelSort(~pso, ~po);
+  keys := keys[p1] cat keys[p0] cat keys[po];
+  basispart := [];
+  for i in [1..#keys] do
+    basispart cat:= [ i : b in parts[keys[i]] ];
+  end for; 
+
+  VSWB := VectorSpaceWithBasis(&cat[ parts[k] : k in keys ]);
+  FLA := AssociativeArray();
+  FLA["class"] := "Fusion law";
+  FLA["set"] := [1..#keys];
+  FLA["law"] := [ [ &join[ { basispart[i] : i in 
+      Support(Vector(Coordinates(VSWB,V!(alg!br*alg!bc)))) }
+      : bc in parts[c], br in parts[r] ] : c in keys ] : r in keys ];
+  FLA["evaluation"] := [ k[2] : k in keys ];
+  FL := FusionLaw(FLA);
+  A`fusion_law := FL;
+  
+  for t in Transversal(G,H) do
+    S := {@ sub<V | [ V!((X!b)*t) : b in parts[k] ] > : k in keys @};
+    D := AxialDecomposition(A, S, V!(ax*t)); 
+    Append(~decs, D);
+  end for;
+
+  A`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs] *]);
+
+  return sc where sc is StandardCopy(RemoveDuplicateDecompositions(A));
+end intrinsic; 
+
 /*
 
 ======= AxlDecAlgElt functions and operations =======
