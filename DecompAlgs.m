@@ -782,7 +782,7 @@ intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng], a::AlgGenElt) -> FusLaw
   require exists{ U : U in parts | Vector(a) in U}: "The axis must be contained in one of the parts.";
   require forall{ U : U in parts | Dimension(U) ne 0}: "All the parts must be non-trivial";
   
-  FL := ComputeFusionLaw(A, parts);
+  FL := FusionLaw(A, parts);
   
   vects := [ U.1 : U in parts ];
   av := [ a*A!v : v in vects ];
