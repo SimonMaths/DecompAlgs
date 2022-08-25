@@ -3,6 +3,7 @@
   {
     +FusionLaw.spec
   }
+  HelperFunctions.m
   DecompAlgs.m
   DecompAlgs_group.m
   #wip.m

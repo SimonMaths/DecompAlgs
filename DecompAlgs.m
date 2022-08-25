@@ -3,6 +3,16 @@
  *  Authors: Justin McInroy, Simon F. Peacock
  */
 
+
+/* Helper function imports */
+import "HelperFunctions.m":check_dim_of_TXorSX,mult_with_mtrx,mult_with_map,sym_pair_idx,tns_pair_idx,sym_idx_pair,tns_idx_pair,sym_trip_idx;
+
+intrinsic GetAlgebra(dir::MonStgElt, name::MonStgElt) -> .
+  {}
+  A := LoadPartialAxialAlgebra(dir cat "/library/Monster_1,4_1,32/RationalField\(\)/basic_algebras/" cat name cat ".json");
+  return AxialDecompositionAlgebra(A);
+end intrinsic;
+
 /*
  * These are the base types for decomposition algebras
  */
@@ -39,22 +49,6 @@ forward CreateElement; // This is defined half-way down the file, but we want to
 ======= Additional utility functions =======
 
 */
-function mult_with_map(x, y, mp);
-  x := Vector(Eltseq(x));
-  y := Vector(Eltseq(y));
-  dx := Degree(x);
-  dy := Degree(y);
-  rm := Nrows(mp);
-  if rm eq dx*dy then
-    return mp(Domain(mp)!TensorProduct(x,y));
-  elif rm eq dx*(dx+1)/2 then
-    error if dx ne dy, "x and y are not from the same space.";
-    return mp(Domain(mp)!SymmetricProduct(x,y));
-  else
-    error "x and y are incompatible with mp, I don't know how to apply it.";
-  end if;
-end function;
-
 intrinsic IsotypicDecomposition(X::ModGrp) -> SeqEnum
   {
     Return the isotypic decomposition of X.
@@ -225,6 +219,27 @@ intrinsic Algebra(A::DecAlg) -> Alg
     Returns the underlying algebra for A.
   }
   return A`algebra;
+end intrinsic;
+
+intrinsic Multiplication(A::Alg) -> Mtrx
+  {}
+  d := Dimension(A);
+  R := BaseRing(A);
+  V := VectorSpace(R, d);
+  if ISA(Type(A), AlgMat) then
+    vec := func<x|Vector(Coordinates(A, x))>;
+  else
+    vec := func<x|Vector(Eltseq(x))>;
+  end if;
+  B := Basis(A);
+  M := Matrix(R, d*d, d,
+    [ vec(B[ij[1]]*B[ij[2]]) : ij in [tns_idx_pair(d,idx)], idx in [1..d*d] ]);
+  return M;
+end intrinsic;
+
+intrinsic Multiplication(A::DecAlg) -> Mtrx
+  {}
+  return Multiplication(Algebra(A));
 end intrinsic;
 
 intrinsic VectorSpace(A::DecAlg) -> Alg
