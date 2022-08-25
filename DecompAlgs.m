@@ -763,8 +763,6 @@ intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng]) -> FusLaw
   require &+[Dimension(U) : U in parts] eq Dimension(A) and V eq VectorSpace(A): "The subspaces given do not form a direct sum decomposition of A.";
   
   dimseq := Partition([1..Dimension(A)], [Dimension(U) : U in parts]);
-  dimseqold := [ [f..f+Dimension(parts[i])-1] where f := i eq 1 select 1 else Self(i-1)[#Self(i-1)]+1 : i in [1..#parts]];
-  assert dimseq eq dimseqold;
 
   function Indicator(v)
     coords := Coordinates(V, V!Eltseq(v));
@@ -801,10 +799,14 @@ intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng], a::AlgGenElt) -> FusLaw
   }
   require IsIdempotent(a) or IsNilpotent(a): "The axis must be either an idempotent, or a nilpotent.";
   require exists{ U : U in parts | Vector(a) in U}: "The axis must be contained in one of the parts.";
-  require forall{ U : U in parts | Dimension(U) ne 0}: "All the parts must be non-trivial";
   
   FL := FusionLaw(A, parts);
   
+  if exists{ U : U in parts | Dimension(U) eq 0} then
+    return FL;
+  end if;
+  
+  // We can assign an evaluation
   vects := [ U.1 : U in parts ];
   av := [ a*A!v : v in vects ];
   eigenvalues := [ av[i, r]/vects[i, r] where r is Rep(Support(vects[i])) : i in [1..#parts]];
