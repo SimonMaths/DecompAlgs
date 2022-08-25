@@ -37,87 +37,8 @@ forward CreateElement; // This is defined half-way down the file, but we want to
 /*
 
 ======= Additional utility functions =======
+
 */
-function mult_with_map(x, y, mp);
-  x := Vector(Eltseq(x));
-  y := Vector(Eltseq(y));
-  dx := Degree(x);
-  dy := Degree(y);
-  rm := Nrows(mp);
-  if rm eq dx*dy then
-    return mp(Domain(mp)!TensorProduct(x,y));
-  elif rm eq dx*(dx+1)/2 then
-    error if dx ne dy, "x and y are not from the same space.";
-    return mp(Domain(mp)!SymmetricProduct(x,y));
-  else
-    error "x and y are incompatible with mp, I don't know how to apply it.";
-  end if;
-end function;
-
-intrinsic IsotypicDecomposition(X::ModGrp) -> SeqEnum
-  {
-    Return the isotypic decomposition of X.
-  }
-  T := TrivialModule(Group(X), BaseRing(X));
-  D := DirectSumDecomposition(X);
-  _,ic := IsomorphismClasses([T] cat D);
-  return [ sub<X|D[c]> : c in [[i-1:i in x|i gt 1]], x in ic | #c gt 0 ];
-end intrinsic;
-
-intrinsic AdjointAction(a::AlgElt) -> Mtrx
-  {
-    Matrix giving the adjoint action -*a: A -> A.
-  }
-  A := Parent(a);
-  M := Matrix([ Eltseq(b*a) : b in Basis(A) ]);
-  return M;
-end intrinsic;
-
-intrinsic AdjointAction(a::DecAlgElt) -> Mtrx
-  {
-  }
-  return AdjointAction(a`elt);
-end intrinsic;
-
-intrinsic RemoveDuplicateDecompositions(A::DecAlg) -> DecAlg
-  {
-    Return a copy of A with duplicate decompositions removed. A decomposition is 
-    a duplicate if the parts are the same. If the decomposition is axial then 
-      the axis must also match. Note that a non-axial decomposition with parts 
-      identitcal to an axial decomposition will be removed.
-  }
-  IS := IndexSet(A);
-  decs := Decompositions(A);
-  fuselts := [ x : x in Elements(FusionLaw(A)) ];
-  lookup := AssociativeArray(); 
-  for idx in IS do
-    dec := decs[idx];
-    if IsAxial(dec) then
-      axis := Axis(dec);
-      isaxl := true;
-    else
-      axis := A!0;
-      isaxl := false;
-    end if;
-    parts := [ Basis(Part(dec, x)) : x in fuselts ];
-    val := <isaxl,axis,idx>;
-    if not parts in Keys(lookup) then
-      lookup[parts] := { val };
-    elif isaxl then
-      current := lookup[parts];
-      new := [ x : x in current | x[1] ];
-      axes := { x[2] : x in new };
-      if not axis in axes then
-        Append(~new, val);
-      end if;
-      lookup[parts] := new;
-    end if;
-  end for;
-  keep := { val[3] : val in lookup[key], key in Keys(lookup) };
-  remove := { x : x in IS } diff keep;
-  return RemoveDecompositions(A, remove);
-end intrinsic;
-
 
 
 // --------------------------------------------
@@ -132,7 +53,7 @@ end intrinsic;
 */
 intrinsic Print(A::DecAlg)
   {
-  Prints a partial axial algebra.
+  Prints a decomposition algebra.
   }
   printf "A %o-dimensional decomposition algebra with %o decompositions", Dimension(A), #IndexSet(A);
 end intrinsic;
@@ -186,18 +107,21 @@ end intrinsic;
 
 intrinsic CoefficientField(A::DecAlg) -> Rng
   {
+  "
   }
   return BaseRing(A);
 end intrinsic;
 
 intrinsic BaseRing(A::DecAlg) -> Rng
   {
+  "
   }
   return BaseRing(Algebra(A));
 end intrinsic;
 
 intrinsic BaseField(A::DecAlg) -> Rng
   {
+  "
   }
   return BaseRing(A);
 end intrinsic;
@@ -584,6 +508,7 @@ end intrinsic;
 
 intrinsic '*'(x::DecAlgElt, r::RngElt) -> DecAlgElt
   {
+  "
   }
   return r*x;
 end intrinsic;
@@ -682,12 +607,12 @@ end intrinsic;
 
 ======= Dec functions and operations =======
 
-"*/
+*/
 intrinsic Print(D::Dec)
   {
   Prints a decomposition.
   }
-  printf "Decomposition of a %o-dimensional algebra into %o parts: %o", 
+  printf "Decomposition of a %o-dimensional algebra into %o parts of dimensions %o", 
     Dimension(Parent(D)), NumberOfParts(D), 
     [ Dimension(Part(D,i)) : i in Elements(FusionLaw(D)) ];
 end intrinsic;
@@ -727,62 +652,84 @@ intrinsic FusionLaw(D::Dec) -> FusLaw
   return D`fusion_law;
 end intrinsic;
 
-intrinsic ComputeFusionLaw(D::Dec) -> FusLaw
+intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng]) -> FusLaw
   {
-  Computes the fusion law for the decomposition.  Note that the fusion law saved for the decomposition should contain the computed one as a sublaw.
+  Given an algebra and a sequence of subspaces which are a direct sum decomposition of the vector space, compute the fusion law.
   }
-  require IsAttached(D): "The decomposition is not attached to an algebra.";
-  A := Parent(D);
-  
-  nparts := NumberOfParts(D);
-  parts := [ Part(D,i) : i in [1..nparts]];
-
+  require forall{ U : U in parts | U subset VectorSpace(A)}: "The subspaces given are not subspaces of A.";
   bas := [ Basis(U) : U in parts];
   V := VectorSpaceWithBasis(&cat(bas));
+  require &+[Dimension(U) : U in parts] eq Dimension(A) and V eq VectorSpace(A): "The subspaces given do not form a direct sum decomposition of A.";
   
   dimseq := Partition([1..Dimension(A)], [Dimension(U) : U in parts]);
-  dimseqold := [ [f..f+Dimension(parts[i])-1] where f := i eq 1 select 1 else Self(i-1)[#Self(i-1)]+1 : i in [1..nparts]];
+  dimseqold := [ [f..f+Dimension(parts[i])-1] where f := i eq 1 select 1 else Self(i-1)[#Self(i-1)]+1 : i in [1..#parts]];
   assert dimseq eq dimseqold;
 
   function Indicator(v)
     coords := Coordinates(V, V!Eltseq(v));
-    return {@ i : i in [1..nparts] | not IsZero(coords[dimseq[i]]) @};
+    return {@ i : i in [1..#parts] | not IsZero(coords[dimseq[i]]) @};
   end function;
 
   FL := New(FusLaw);
-  FL`set := IndexedSet([1..nparts]);
+  FL`set := IndexedSet([1..#parts]);
   
-  FL`law := [[ {@ Universe(FL`set)| @} : i in [1..nparts] ] : i in [1..nparts] ];
+  FL`law := [[ {@ Universe(FL`set)| @} : i in [1..#parts] ] : i in [1..#parts] ];
   
-  for i in [1..nparts] do
+  for i in [1..#parts] do
     if IsCommutative(A) then
-      for j in [i..nparts] do
+      for j in [i..#parts] do
         prods := [ (A!v)*(A!w) : v in bas[i], w in bas[j]];
         FL`law[i,j] := &join[ Indicator(p) : p in prods];
         FL`law[j,i] := FL`law[i,j];
       end for;
     else
       // we are not commutative
-      for j in [1..nparts] do
+      for j in [1..#parts] do
         prods := [ (A!v)*(A!w) : v in bas[i], w in bas[j]];
         FL`law[i,j] := &join[ Indicator(p) : p in prods];
       end for;
     end if;
   end for;
 
-  if IsAxial(D) then
-    a := A!Axis(D);
-    vects := [ Rep(U) : U in parts ];
-    av := [ a*A!v : v in vects ];
-    eigenvalues := [ av[i, r]/vects[i, r] where r is Rep(Support(vects[i])) : i in [1..nparts]];
-    f := map< FL`set -> BaseRing(A) | i:->eigenvalues[i], j:-> Position(eigenvalues,j)>;
-    AssignEvaluation(~FL, f);
-  end if;
+  return FL;
+end intrinsic;
+
+intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng], a::AlgGenElt) -> FusLaw
+  {
+  Given an algebra and a sequence of subspaces which are a direct sum decomposition of the vector space and an axis a in A, compute the fusion law.
+  }
+  require IsIdempotent(a) or IsNilpotent(a): "The axis must be either an idempotent, or a nilpotent.";
+  require exists{ U : U in parts | Vector(a) in U}: "The axis must be contained in one of the parts.";
+  require forall{ U : U in parts | Dimension(U) ne 0}: "All the parts must be non-trivial";
+  
+  FL := ComputeFusionLaw(A, parts);
+  
+  vects := [ U.1 : U in parts ];
+  av := [ a*A!v : v in vects ];
+  eigenvalues := [ av[i, r]/vects[i, r] where r is Rep(Support(vects[i])) : i in [1..#parts]];
+  f := map< FL`set -> BaseRing(A) | i:->eigenvalues[i], j:-> Position(eigenvalues,j)>;
+  AssignEvaluation(~FL, f);
 
   return FL;
 end intrinsic;
 
-// Can we implement the following using [] notation
+intrinsic MinimalFusionLaw(D::Dec) -> FusLaw
+  {
+  Computes the fusion law given by the decomposition.  Note that the fusion law saved for the decomposition should contain the computed one as a sublaw.
+  }
+  require IsAttached(D): "The decomposition is not attached to an algebra.";
+  A := Parent(D);
+  Alg := Algebra(A);
+  
+  if IsAxial(D) then
+    a := Alg!Eltseq(Axis(D));
+    return FusionLaw(Alg, Parts(D), a);
+  else
+    return FusionLaw(Alg, Parts(D));
+  end if;
+end intrinsic;
+
+// Can we implement the following using [] notation?
 intrinsic Part(D::Dec, x::FusLawElt) -> ModTupRng
   {
     Returns the part of D for the fusion law element x.
@@ -808,6 +755,7 @@ intrinsic NumberOfParts(D::Dec) -> RngIntElt
 end intrinsic;
 intrinsic Nparts(D::Dec) -> RngIntElt
   {
+  "
   }
   return NumberOfParts(D);
 end intrinsic;
@@ -959,89 +907,6 @@ intrinsic AxialDecompositionAlgebra(A::ParAxlAlg) -> DecAlg
   
   return Anew;
 end intrinsic;
-
-intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp) 
-    -> DecAlg
-  {
-    Creates an axial decomposition algebra from a multiplication and list of
-    axes.
-  }
-  R := BaseRing(mult);
-  X := Codomain(mult);
-  G := Group(X);
-  A := New(AxlDecAlg);
-  alg :=  Algebra<R, Dimension(X) | [ [ Eltseq(mult_with_map(x,y,mult)) 
-                                     : y in Basis(X) ] : x in Basis(X) ] >;
-  A`algebra := alg;
-  V := VectorSpace(A);
-  RX := Restriction(X, H);
-  IC := IsotypicDecomposition(RX);
-  Vic := [ sub<V| [V!Eltseq(RX!b):b in Basis(ic)]> : ic in IC ];
-  decs := [**];
-
-  parts := AssociativeArray();
-  adjnt := AdjointAction(A`algebra!Eltseq(ax));
-
-  for evd in Eigenvalues(adjnt) do
-    ev := evd[1];
-    d := evd[2];
-    Ve := sub<V|Eigenspace(adjnt, ev)>;
-    bas := [];
-    for i in [1..#Vic] do
-      vic := Vic[i];
-      vevic := Ve meet vic;
-      if Dimension(vevic) gt 0 then
-        parts[<i,ev>] := Basis(vevic);
-        bas cat:= Basis(vevic);
-        d -:= Dimension(vevic);
-      end if;
-    end for;
-    if d gt 0 then
-      EB := ExtendBasis(bas, Ve);
-      parts[<0,ev>] := sub<Ve|EB[[#bas+1..#EB]]>;
-    end if;
-  end for;
-
-  keys := [ k : k in Keys(parts) ];
-  p1 := [ i : i in [1..#keys] | keys[i][2] eq 1 ];
-  p0 := [ i : i in [1..#keys] | keys[i][2] eq 0 ];
-  po := [ i : i in [1..#keys] | i notin p1 and i notin p0 ];
-  ps1 := [ k[1] : k in keys[p1] ];
-  ps0 := [ k[1] : k in keys[p0] ];
-  pso := [ k[1] : k in keys[po] ];
-  ParallelSort(~ps1, ~p1);
-  ParallelSort(~ps0, ~p0);
-  ParallelSort(~pso, ~po);
-  keys := keys[p1] cat keys[p0] cat keys[po];
-  basispart := [];
-  for i in [1..#keys] do
-    basispart cat:= [ i : b in parts[keys[i]] ];
-  end for; 
-
-  VSWB := VectorSpaceWithBasis(&cat[ parts[k] : k in keys ]);
-  FLA := AssociativeArray();
-  FLA["class"] := "Fusion law";
-  FLA["set"] := [1..#keys];
-  FLA["law"] := [ [ &join[ { basispart[i] : i in 
-      Support(Vector(Coordinates(VSWB,V!(alg!br*alg!bc)))) }
-      : bc in parts[c], br in parts[r] ] : c in keys ] : r in keys ];
-  FLA["evaluation"] := [ k[2] : k in keys ];
-  FL := FusionLaw(FLA);
-  A`fusion_law := FL;
-  
-  for t in Transversal(G,H) do
-    S := {@ sub<V | [ V!((X!b)*t) : b in parts[k] ] > : k in keys @};
-    D := AxialDecomposition(A, S, V!(ax*t)); 
-    Append(~decs, D);
-  end for;
-
-  A`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs] *]);
-
-  return sc where sc is StandardCopy(RemoveDuplicateDecompositions(A));
-end intrinsic; 
-
-
-
 /*
 
 ======= AxlDecAlgElt functions and operations =======
