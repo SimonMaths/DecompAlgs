@@ -14,9 +14,11 @@ procedure check_dim_of_TXorSX(r, c);
 end procedure;
 
 function mult_with_mtrx(x, y, mtrx);
+  x := Vector(Eltseq(x));
+  y := Vector(Eltseq(y));
   BR := Parent(Rep([Rep(BaseRing(x)),Rep(BaseRing(y)),Rep(BaseRing(mtrx))]));
-  x := Vector(BR, Eltseq(x));
-  y := Vector(BR, Eltseq(y));
+  x := Vector(BR, x);
+  y := Vector(BR, y);
   mtrx := Matrix(BR, mtrx);
   dx := Degree(x);
   dy := Degree(y);
