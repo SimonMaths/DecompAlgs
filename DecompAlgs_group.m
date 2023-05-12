@@ -182,7 +182,7 @@ intrinsic MiyamotoPermutation(A::DecAlg, i::., x::GrpElt) -> GrpElt
   return sym!IS[perm];
 end intrinsic;
 
-intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt
+intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt, SetMulti
   {
     Returns whether or not A is Miyamoto closed with respect to the character x.
   }
@@ -219,7 +219,7 @@ intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt
   return true, {**};
 end intrinsic;
 
-intrinsic IsMiyamotoClosed(A::DecAlg) -> BoolElt
+intrinsic IsMiyamotoClosed(A::DecAlg) -> BoolElt, SetMulti
   {
     Returns whether or not A is Miyamoto closed.
   }
@@ -234,7 +234,7 @@ intrinsic IsMiyamotoClosed(A::DecAlg) -> BoolElt
   return true, {**};
 end intrinsic;
 
-intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg
+intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg, SetMulti
   {
     Returns a Miyamoto closed version of A by adding additional decompositions 
       if needed.
@@ -352,5 +352,12 @@ intrinsic UniversalMiyamotoGModule(A::DecAlg) -> ModGrp
   UMiy := MiyamotoGroup(A);
   return GModule(UMiy, [ MiyamotoAction(A, A`universal_projection(UMiy.i)) 
         : i in [1..Ngens(UMiy)] ]);
+end intrinsic;
+
+intrinsic AxisMiyamotoGSet(A::AxlDecAlg) -> GSet
+  {
+  Returns the permutation GSet given by the action of the Miyamoto grou on the axes.
+  }
+  // TO DO
 end intrinsic;
 

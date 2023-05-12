@@ -3,15 +3,8 @@
  *  Authors: Justin McInroy, Simon F. Peacock
  */
 
-
 /* Helper function imports */
-import "HelperFunctions.m":check_dim_of_TXorSX,mult_with_mtrx,mult_with_map,sym_pair_idx,tns_pair_idx,sym_idx_pair,tns_idx_pair,sym_trip_idx;
-
-intrinsic GetAlgebra(dir::MonStgElt, name::MonStgElt) -> .
-  {}
-  A := LoadPartialAxialAlgebra(dir cat "/library/Monster_1,4_1,32/RationalField\(\)/basic_algebras/" cat name cat ".json");
-  return AxialDecompositionAlgebra(A);
-end intrinsic;
+import "HelperFunctions.m": check_dim_of_TXorSX, mult_with_mtrx, mult_with_map, sym_pair_idx, tns_pair_idx, sym_idx_pair, tns_idx_pair, sym_trip_idx;
 
 /*
  * These are the base types for decomposition algebras
@@ -44,6 +37,8 @@ declare attributes Dec:
   parts;                     // An Assoc indexed by the elements of the fusion law
 
 forward CreateElement; // This is defined half-way down the file, but we want to use it first.
+
+declare verbose DecAlg, 2;
 /*
 
 ======= Additional utility functions =======
@@ -59,7 +54,7 @@ intrinsic IsotypicDecomposition(X::ModGrp) -> SeqEnum
   return [ sub<X|D[c]> : c in [[i-1:i in x|i gt 1]], x in ic | #c gt 0 ];
 end intrinsic;
 
-intrinsic AdjointAction(a::AlgElt) -> Mtrx
+intrinsic AdjointMatrix(a::AlgElt) -> Mtrx
   {
     Matrix giving the adjoint action -*a: A -> A.
   }
@@ -68,10 +63,10 @@ intrinsic AdjointAction(a::AlgElt) -> Mtrx
   return M;
 end intrinsic;
 
-intrinsic AdjointAction(a::DecAlgElt) -> Mtrx
+intrinsic AdjointMatrix(a::DecAlgElt) -> Mtrx
   {
   }
-  return AdjointAction(a`elt);
+  return AdjointMatrix(a`elt);
 end intrinsic;
 
 intrinsic RemoveDuplicateDecompositions(A::DecAlg) -> DecAlg
@@ -145,6 +140,7 @@ intrinsic RemoveDecomposition(A::DecAlg, i::.) -> DecAlg
   }
   A := CopyDecompositionAlgebra(A);
   Remove(~(A`decompositions), i);
+  return A;
 end intrinsic;
 
 intrinsic RemoveDecompositions(~A::DecAlg, I::.)
@@ -181,21 +177,21 @@ end intrinsic;
 
 intrinsic CoefficientField(A::DecAlg) -> Rng
   {
-  The coefficient ring (or base ring) of the algebra.
+  "
   }
   return BaseRing(A);
 end intrinsic;
 
 intrinsic BaseRing(A::DecAlg) -> Rng
   {
-  The coefficient ring (or base ring) of the algebra.
+  "
   }
   return BaseRing(Algebra(A));
 end intrinsic;
 
 intrinsic BaseField(A::DecAlg) -> Rng
   {
-  The coefficient ring (or base ring) of the algebra.
+  "
   }
   return BaseRing(A);
 end intrinsic;
@@ -221,6 +217,7 @@ intrinsic Algebra(A::DecAlg) -> Alg
   return A`algebra;
 end intrinsic;
 
+// Better name for this?  Also should this be a SeqEnum of Matrices instead??
 intrinsic Multiplication(A::Alg) -> Mtrx
   {}
   d := Dimension(A);
@@ -283,6 +280,40 @@ intrinsic 'eq'(A::DecAlg, B::DecAlg) -> BoolElt
   // NB, this checks the fusion law too as the keys of the decomposition are FusLawElts.
 end intrinsic;
 
+intrinsic IsCommutative(A::DecAlg) -> BoolElt
+  {
+  Returns whether an algebra is commutative.
+  }
+  return IsCommutative(Algebra(A));
+end intrinsic;
+
+intrinsic IsAssociative(A::DecAlg) -> BoolElt
+  {
+  Returns whether an algebra is associative.
+  }
+  return IsAssociative(Algebra(A));
+end intrinsic;
+
+function ChangeRingSeq(s, F, f);
+  return [ ChangeRing(x, F, f) : x in s ];
+end function;
+
+intrinsic ChangeField(A::DecAlg, F::Fld) -> DecAlg
+  {
+  Changes the field of definition of the decomposition algebra.
+  }
+  return ChangeRing(A, F);
+end intrinsic;
+
+intrinsic ChangeRing(A::DecAlg, F::Rng) -> DecAlg
+  {
+  Changes the ring of definition of the decomposition algebra.
+  }
+  new_FL := ChangeRing(FusionLaw(A), F);
+  
+  // TO COMPLETE
+  
+end intrinsic;
 /*
 
 ======= Creating DecAlgs =======
@@ -518,7 +549,7 @@ end intrinsic;
 
 // I had this as an intrinsic before, but maybe a function is better??
 function CreateElement(A, x)
-  xx := New(DecAlgElt);
+  xx := New(ElementType(A)); // create the elements in the correct type
   xx`parent := A;
   xx`elt := (A`algebra)!x;
   
@@ -624,10 +655,10 @@ intrinsic '*'(x::DecAlgElt, g::GrpElt) -> DecAlgElt
     Returns the image of x under the action of g.
   }
   A := Parent(x);
-  if Parent(g) eq UniversalMiyamotoGroup(A) then
+  if ExistsCoveringStructure(Parent(g), UniversalMiyamotoGroup(A)) and Parent(g) eq UniversalMiyamotoGroup(A) then
     g := A`universal_projection(g);
   end if;
-  if Parent(g) eq MiyamotoGroup(A) then
+  if ExistsCoveringStructure(Parent(g), MiyamotoGroup(A)) and Parent(g) eq MiyamotoGroup(A) then
     mtrx := MiyamotoAction(A, g);
     return A!(Vector(Eltseq(x))*Matrix(mtrx));
   end if;
@@ -748,7 +779,9 @@ intrinsic FusionLaw(D::Dec) -> FusLaw
 end intrinsic;
 
 intrinsic Parts(D::Dec) -> SeqEnum
-  {}
+  {
+  Returns the parts for D.
+  }
   el := Elements(FusionLaw(Parent(D)));
   return [ Part(D, x) : x in el ];
 end intrinsic;
@@ -879,7 +912,7 @@ end intrinsic;
 
 intrinsic Decomposition(A::DecAlg, S::{@ModTupRng@}: labels := func<U|FusionLaw(A)!Position(S, U)>) -> Dec
   {
-  Given a set of subspaces S of a decomposition algebra A, creates a Decompositon for A with respect to S.  Optional parameter of label gives the labeling of elements of S; the default is by order in S.
+  Given a set of subspaces S of a decomposition algebra A, creates a Decomposition for A with respect to S.  Optional parameter of label gives the labeling of elements of S; the default is by order in S.
   }
   require IsIndependent(&cat[ Basis(U) : U in S]): "The subspaces given are not a direct sum.";
   require &+S eq VectorSpace(Algebra(A)): "The subspaces given do not span A";
@@ -928,206 +961,11 @@ end intrinsic;
 
 intrinsic IsAxial(D::Dec) -> BoolElt
   {
-    Returns if the decomposition is axial
+    Returns if the decomposition is axial.
   }
   if ISA(Type(D), AxlDec) then
     return true;
   end if;
   return false;
 end intrinsic;
-// --------------------------------------------
-//
-//         Axial Decomposition Algebras
-//
-// --------------------------------------------
-/*
 
-======= The following are axial versions inheriting the structures above =======
-
-*/
-//Probably the following declaration is wrong.
-declare type AxlDecAlgElt: DecAlgElt;
-
-declare type AxlDecAlg[AxlDecAlgElt]: DecAlg;
-
-declare type AxlDec: Dec;
-
-declare attributes AxlDec:
-  axis;         // An (Axl)DecAlgElt
-
-/*
-
-======= AxlDecAlg functions and operations =======
-
-*/
-intrinsic Print(A::AxlDecAlg)
-  {
-  Prints a partial axial algebra.
-  }
-  printf "A %o-dimensional axial decomposition algebra with %o decompositions", Dimension(A), #IndexSet(A);
-end intrinsic;
-
-intrinsic Axes(A::AxlDecAlg) -> SetIndx[AxlDecAlgElt]
-  {
-    Returns the set of axes for A.
-  }
-  return {@ Axis(Decompositions(A)[k]) : k in IndexSet(A) @};
-end intrinsic;
-
-intrinsic AxialDecompositionAlgebra(A::ParAxlAlg) -> DecAlg
-  {
-  Creates an axial decomposition algebra from a partial axial algebra.
-  }
-  Anew := New(AxlDecAlg);
-  Anew`fusion_law := FusionLaw(A`fusion_table);
-  Anew`algebra := Algebra<BaseRing(A), Dimension(A) | A`mult>;
-  
-  eigs := A`fusion_table`eigenvalues;
-  Gr, gr := Grading(A`fusion_table);
-  require Order(Gr) eq 2: "The grading group must be of order 2";
-  
-  keys := AssociativeArray();
-  keys["even"] := {@ e : e in eigs | e@gr eq Gr!1@};
-  keys["odd"] := {@ e : e in eigs | e@gr ne Gr!1@};
-
-  G := Group(A);
-  Vnew := VectorSpace(Anew);
-  
-  // We use a sequence, so there could be duplicate decompositions
-  decs := [**];
-  for i in [1..#A`axes] do
-    H := A`axes[i]`stab;
-    trans := Transversal(G, H);
-    for g in trans do
-      S := {@ sub<Vnew | [Vnew | ((A!v)*g)`elt : v in Basis(A`axes[i]``attr[{@k@}])]>
-                : k in keys[attr], attr in ["even", "odd"] @};
-      D := AxialDecomposition(Anew, S, (A`axes[i]`id*g)`elt);
-      Append(~decs, D);
-    end for;
-  end for;
-  
-  Anew`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs]*]);
-  
-  return Anew;
-end intrinsic;
-
-intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp) 
-    -> DecAlg
-  {
-    Creates an axial decomposition algebra from a multiplication and list of
-    axes.
-  }
-  R := BaseRing(mult);
-  X := Codomain(mult);
-  G := Group(X);
-  A := New(AxlDecAlg);
-  alg :=  Algebra<R, Dimension(X) | [ [ Eltseq(mult_with_mtrx(x,y,mult)) 
-                                     : y in Basis(X) ] : x in Basis(X) ] >;
-  A`algebra := alg;
-  V := VectorSpace(A);
-  RX := Restriction(X, H);
-  IC := IsotypicDecomposition(RX);
-  Vic := [ sub<V| [V!Eltseq(RX!b):b in Basis(ic)]> : ic in IC ];
-  decs := [**];
-
-  parts := AssociativeArray();
-  adjnt := AdjointAction(A`algebra!Eltseq(ax));
-
-  for evd in Eigenvalues(adjnt) do
-    ev := evd[1];
-    d := evd[2];
-    Ve := sub<V|Eigenspace(adjnt, ev)>;
-    bas := [];
-    for i in [1..#Vic] do
-      vic := Vic[i];
-      vevic := Ve meet vic;
-      if Dimension(vevic) gt 0 then
-        parts[<i,ev>] := Basis(vevic);
-        bas cat:= Basis(vevic);
-        d -:= Dimension(vevic);
-      end if;
-    end for;
-    if d gt 0 then
-      EB := ExtendBasis(bas, Ve);
-      parts[<0,ev>] := sub<Ve|EB[[#bas+1..#EB]]>;
-    end if;
-  end for;
-
-  keys := [ k : k in Keys(parts) ];
-  p1 := [ i : i in [1..#keys] | keys[i][2] eq 1 ];
-  p0 := [ i : i in [1..#keys] | keys[i][2] eq 0 ];
-  po := [ i : i in [1..#keys] | i notin p1 and i notin p0 ];
-  ps1 := [ k[1] : k in keys[p1] ];
-  ps0 := [ k[1] : k in keys[p0] ];
-  pso := [ k[1] : k in keys[po] ];
-  ParallelSort(~ps1, ~p1);
-  ParallelSort(~ps0, ~p0);
-  ParallelSort(~pso, ~po);
-  keys := keys[p1] cat keys[p0] cat keys[po];
-  basispart := [];
-  for i in [1..#keys] do
-    basispart cat:= [ i : b in parts[keys[i]] ];
-  end for; 
-
-  VSWB := VectorSpaceWithBasis(&cat[ parts[k] : k in keys ]);
-  FLA := AssociativeArray();
-  FLA["class"] := "Fusion law";
-  FLA["set"] := [1..#keys];
-  FLA["law"] := [ [ &join[ { basispart[i] : i in 
-      Support(Vector(Coordinates(VSWB,V!(alg!br*alg!bc)))) }
-      : bc in parts[c], br in parts[r] ] : c in keys ] : r in keys ];
-  FLA["evaluation"] := [ k[2] : k in keys ];
-  FL := FusionLaw(FLA);
-  A`fusion_law := FL;
-  
-  for t in Transversal(G,H) do
-    S := {@ sub<V | [ V!((X!b)*t) : b in parts[k] ] > : k in keys @};
-    D := AxialDecomposition(A, S, V!(ax*t)); 
-    Append(~decs, D);
-  end for;
-
-  A`decompositions := AssociativeArray([* <i, decs[i]> : i in [1..#decs] *]);
-
-  return sc where sc is StandardCopy(RemoveDuplicateDecompositions(A));
-end intrinsic; 
-
-/*
-
-======= AxlDecAlgElt functions and operations =======
-
-*/
-
-/*
- * AxlDec functions and operations
- */
-intrinsic Axis(D::AxlDec) -> .
-  {
-    Returns the axis for D.
-  }
-  return D`axis;
-end intrinsic;
-
-intrinsic Evaluation(D::AxlDec) -> Map
-  {
-    Returns the evaluation for D.
-  }
-  return Evaluation(FusionLaw(D));
-end intrinsic;
-
-intrinsic AxialDecomposition(A::DecAlg, S::{@ModTupRng@}, axis::. : labels := func<U|FusionLaw(A)!Position(S, U)>) -> Dec
-  {
-  Given a set of subspaces S of a decomposition algebra A, creates a Decompositon for A with respect to S.  Optional parameter of label gives the labeling of elements of S; the default is by order in S.
-  }
-  require IsIndependent(&cat[ Basis(U) : U in S]): "The subspaces given are not a direct sum.";
-  require &+S eq VectorSpace(Algebra(A)): "The subspaces given do not span A";
-  so, ax:= IsCoercible(A, axis);
-  require so: "The axis is not coercible into the decomposition algebra";
-  
-  D := New(AxlDec);
-  D`parent := A;
-  D`fusion_law := A`fusion_law;
-  D`parts := AssociativeArray([* < U@labels, U> : U in S *]);
-  D`axis := ax;
-  
-  return D;
-end intrinsic;

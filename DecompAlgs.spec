@@ -6,5 +6,7 @@
   HelperFunctions.m
   DecompAlgs.m
   DecompAlgs_group.m
+  AxialAlgs.m
+  FrobeniusForm.m
   #wip.m
 }
