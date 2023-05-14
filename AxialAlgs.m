@@ -231,7 +231,7 @@ intrinsic Evaluation(D::AxlDec) -> Map
   return Evaluation(FusionLaw(D));
 end intrinsic;
 
-intrinsic AxialDecomposition(A::DecAlg, S::{@ModTupRng@}, axis::. : labels := func<U|FusionLaw(A)!Position(S, U)>) -> Dec
+intrinsic AxialDecomposition(A::DecAlg, S::{@ModTupRng@}, axis::. : labels := func<U|FusionLaw(A)!Position(S, U)>) -> AxlDec
   {
   Given a set of subspaces S of a decomposition algebra A, creates a Decomposition for A with respect to S.  Optional parameter of label gives the labeling of elements of S; the default is by order in S.
   }
@@ -325,16 +325,71 @@ intrinsic ChangeField(A::AxlAlg, F::Fld) -> DecAlg
   return ChangeRing(A, F);
 end intrinsic;
 
-intrinsic ChangeRing(A::axlAlg, F::Rng) -> DecAlg
+intrinsic ChangeRing(A::AxlAlg, S::Rng: allow_collapse:=false) -> DecAlg
   {
   Changes the ring of definition of the axial algebra.  Checks that the eigenvalues do not collapse.
   
   Note that we need to be able to coerce any scalars into the new field.  For example, the rationals to a finite field is ok, but not the other way.
   }
-  new_FL := ChangeRing(FusionLaw(A), F);
+  require forall{ r : r in Generators(BaseRing(A)) | IsCoercible(S, r)}: "The base ring of the algebra cannot be coerced into the given ring.";
+  // Need to check that the evaluationas for the fusion law don't collapse
   
+  FL := FusionLaw(A);
+  ev := Evaluation(FL);
+  Im := {@ x@ev : x in Elements(FL) @};
   
-  // TO DO
+  collapse := #ChangeUniverse(Im, S) ne #Im;
+  // If some eigenvalues do collapse and 
+  if collapse and not allow_collapse then
+    error "Some eigenvalues collapse";
+  end if;  
+    
+  // This is almost repetition of previous code - this should be able to be done better
+  new_FL := ChangeRing(FusionLaw(A), S);
+  
+  if collapse and Type(A) eq AxlAlg then
+    Anew := New(AxlDecAlg);
+  else
+    Anew := New(Type(A));
+  end if;
+  
+  Anew`fusion_law := new_FL;
+  Anew`algebra := ChangeRing(Algebra(A), S);
+  
+  decs := Decompositions(A);
+  newdecs := AssociativeArray();  
+  for k in Keys(decs) do
+    parts := decs[k]`parts;
+    Q := {@ ChangeRing(parts[x], S) : x in Keys(parts) @};
+    // don't worry about the labelling   
+    
+    if IsAxial(decs[k]) then
+      newdec := AxialDecomposition(Anew, Q, Eltseq(Axis(decs[k])));
+    else
+      newdec := Decomposition(Anew, Q);
+    end if;
+    newdecs[k] := newdec;
+  end for;
+  Anew`decompositions := newdecs;
+  
+  // Don't do chargroup or charmap
+  attributes := {"Miyamoto_group", "universal_Miyamoto_group", "universal_projection"};
+  
+  for attr in attributes do
+    if assigned A``attr then
+      Anew``attr := A``attr;
+    end if;
+  end for;
+  
+  if assigned A`Miyamoto_map then
+    assert assigned A`Miyamoto_group;
+    Miy_mat := Image(A`Miyamoto_map);
+    G := MiyamotoGroup(Anew);
+    Anew`Miyamoto_map := hom<G -> ChangeRing(Miy_mat, S) | 
+                  [ ChangeRing(MiyamotoAction(A,g), S) : g in Generators(G)]>;    
+  end if;  
+  
+  return Anew;
 end intrinsic;
 
 /*

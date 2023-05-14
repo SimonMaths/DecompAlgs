@@ -294,10 +294,6 @@ intrinsic IsAssociative(A::DecAlg) -> BoolElt
   return IsAssociative(Algebra(A));
 end intrinsic;
 
-function ChangeRingSeq(s, F, f);
-  return [ ChangeRing(x, F, f) : x in s ];
-end function;
-
 intrinsic ChangeField(A::DecAlg, F::Fld) -> DecAlg
   {
   Changes the field of definition of the decomposition algebra.
@@ -305,15 +301,71 @@ intrinsic ChangeField(A::DecAlg, F::Fld) -> DecAlg
   return ChangeRing(A, F);
 end intrinsic;
 
-intrinsic ChangeRing(A::DecAlg, F::Rng) -> DecAlg
+intrinsic ChangeRing(A::DecAlg, S::Rng) -> DecAlg
   {
-  Changes the ring of definition of the decomposition algebra.
+  Given an decomposition algebra over a ring R, changes the ring of definition of the decomposition algebra to S, where R can be naturally coerced into S.
   }
-  new_FL := ChangeRing(FusionLaw(A), F);
+  require forall{ r : r in Generators(BaseRing(A)) | IsCoercible(S, r)}: "The base ring of the algebra cannot be coerced into the given ring.";
+  
+  new_FL := ChangeRing(FusionLaw(A), S);
+  
+  Anew := New(Type(A));
+  Anew`fusion_law := new_FL;
+  Anew`algebra := ChangeRing(Algebra(A), S);
+  
+  decs := Decompositions(A);
+  newdecs := AssociativeArray();  
+  for k in Keys(decs) do
+    parts := decs[k]`parts;
+    Q := {@ ChangeRing(parts[x], S) : x in Keys(parts) @};
+    // don't worry about the labelling   
+    
+    if IsAxial(decs[k]) then
+      newdec := AxialDecomposition(Anew, Q, Eltseq(Axis(decs[k])));
+    else
+      newdec := Decomposition(Anew, Q);
+    end if;
+    newdecs[k] := newdec;
+  end for;
+  Anew`decompositions := newdecs;
+  
+  // Don't do chargroup or charmap
+  attributes := {"Miyamoto_group", "universal_Miyamoto_group", "universal_projection"};
+  
+  for attr in attributes do
+    if assigned A``attr then
+      Anew``attr := A``attr;
+    end if;
+  end for;
+  
+  if assigned A`Miyamoto_map then
+    assert assigned A`Miyamoto_group;
+    Miy_mat := Image(A`Miyamoto_map);
+    G := MiyamotoGroup(Anew);
+    Anew`Miyamoto_map := hom<G -> ChangeRing(Miy_mat, S) | 
+                  [ ChangeRing(MiyamotoAction(A,g), S) : g in Generators(G)]>;    
+  end if;  
+  
+  return Anew;
+end intrinsic;
+
+// Do more complicated coercion with a map.  Need to write this for FusLaw first
+/*
+function ChangeRingSeq(s, F, f);
+  return [ ChangeRing(x, F, f) : x in s ];
+end function;
+*/
+/*
+intrinsic ChangeRing(A::DecAlg, S::Rng, f::Map) -> DecAlg
+  {
+  Given an decomposition algebra over a ring R and a ring homomorphism f:R -> S, changes the ring of definition of the decomposition algebra to S.
+  }
+  new_FL := ChangeRing(FusionLaw(A), S);
   
   // TO COMPLETE
   
 end intrinsic;
+*/
 /*
 
 ======= Creating DecAlgs =======
@@ -573,8 +625,7 @@ intrinsic IsCoercible(A::DecAlg, x::.) -> BoolElt, .
     return true, CreateElement(A, x);
   elif ISA(Type(x), ModTupFldElt) and x in VectorSpace(A) then
     return true, CreateElement(A, x);
-  elif ISA(Type(x), SeqEnum) then
-    ae := Algebra(A)!x;
+  elif ISA(Type(x), SeqEnum) and IsCoercible(Algebra(A), x) then
     return true, CreateElement(A, x);
   // More to add here!!
   end if;
