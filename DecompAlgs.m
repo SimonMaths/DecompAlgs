@@ -3,6 +3,9 @@
  *  Authors: Justin McInroy, Simon F. Peacock
  */
 
+// A location to save algebras
+library_location := "library";
+
 /* Helper function imports */
 import "HelperFunctions.m": check_dim_of_TXorSX, mult_with_mtrx, mult_with_map, sym_pair_idx, tns_pair_idx, sym_idx_pair, tns_idx_pair, sym_trip_idx;
 
