@@ -53,6 +53,17 @@ intrinsic Axes(A::AxlDecAlg) -> SetIndx[AxlDecAlgElt]
   return {@ Axis(Decompositions(A)[k]) : k in IndexSet(A) @};
 end intrinsic;
 
+intrinsic AxisOrbitRepresentatives(A::DecAlg) -> SetIndx
+  {
+  Returns orbit representatives of the axes under the action of the Miyamoto group.
+  }
+  G := MiyamotoGroup(A);
+  
+  // This is a bit dirty, but still
+  orbits := {@ {@ a*g : g in G @} : a in Axes(A) @};
+  return {@ o[1] : o in orbits @};
+end intrinsic;
+
 intrinsic IsPrimitive(A::AxlDecAlg) -> BoolElt
   {
   Returns whether the axial decomposition algebra is primitive.
@@ -236,7 +247,7 @@ intrinsic AxialDecomposition(A::DecAlg, S::{@ModTupRng@}, axis::. : labels := fu
   Given a set of subspaces S of a decomposition algebra A, creates a Decomposition for A with respect to S.  Optional parameter of label gives the labeling of elements of S; the default is by order in S.
   }
   require IsIndependent(&cat[ Basis(U) : U in S]): "The subspaces given are not a direct sum.";
-  require &+S eq VectorSpace(Algebra(A)): "The subspaces given do not span A";
+  require &+S eq VectorSpace(A): "The subspaces given do not span A";
   so, ax:= IsCoercible(A, axis);
   require so: "The axis is not coercible into the decomposition algebra";
   

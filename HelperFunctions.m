@@ -13,6 +13,14 @@ procedure check_dim_of_TXorSX(r, c);
   end if;
 end procedure;
 
+// This is the intrnsic SymmetricProduct in wip.m
+function sym_prod(v, w)
+  error if not #Eltseq(v) eq #Eltseq(w), "v and w need to be the same length.";
+  sp := [ vw : vw in [&+([ v[i]*w[j] ] cat [ v[j]*w[i] : dummy in [1] | 
+          i ne j ])], j in [i..Degree(v)], i in [1..Degree(v)] ];
+  return Vector(sp);
+end function;
+
 function mult_with_mtrx(x, y, mtrx);
   x := Vector(Eltseq(x));
   y := Vector(Eltseq(y));
@@ -29,7 +37,7 @@ function mult_with_mtrx(x, y, mtrx);
     return TensorProduct(x,y)*mtrx;
   elif 2*rm eq dx*(dx+1) then
     error if dx ne dy, "x and y are not from the same space.";
-    return SymmetricProduct(x,y)*mtrx;
+    return sym_prod(x,y)*mtrx;
   elif rm eq dx and cm eq dy then
     return x * mtrx * Transpose(Matrix(y));
   else

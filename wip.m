@@ -94,7 +94,7 @@ intrinsic JordanDecompositionAlgebra(n::RngIntElt, q::RngIntElt) -> DecAlg
   dd := #PI div 10;
   for a in PI do
     cnt +:= 1;
-    parts := {@ sub<vs | Eigenspace(AdjointAction(a), l) > : l in [k | 1, 0, half ] @};
+    parts := {@ sub<vs | Eigenspace(AdjointMatrix(a), l) > : l in [k | 1, 0, half ] @};
     decs[cnt] := Decomposition(A, parts);
     if cnt div dd gt pdec then
       printf "%o", pdec;

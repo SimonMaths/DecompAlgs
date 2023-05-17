@@ -153,6 +153,13 @@ intrinsic MiyamotoAction(A::DecAlg, g::GrpElt) -> Mtrx
   return A`Miyamoto_map(g);
 end intrinsic;
 
+intrinsic MiyamotoActionMap(A::DecAlg) -> Map
+  {
+  Returns the homomorphism giving the action of the Miyamoto group on A as a matrix group.
+  }
+  return A`Miyamoto_map;
+end intrinsic;
+
 intrinsic MiyamotoElement(A::DecAlg, i::., x::GrpElt) -> GrpElt
   {
     Returns the Miyamoto element \tau_i,x.
@@ -265,6 +272,17 @@ intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg, SetMulti
   return A;
 end intrinsic;
 
+intrinsic DecompositionOrbitRepresentatives(A::DecAlg) -> SetIndx
+  {
+  Returns orbit representatives of the decompositions under the action of the Miyamoto group.
+  }
+  G := MiyamotoGroup(A);
+  
+  // This is a bit dirty, but still
+  orbits := {@ {@ D*g : g in G @} : D in Decompositions(A) @};
+  return {@ o[1] : o in orbits @};
+end intrinsic;
+
 intrinsic UniversalMiyamotoGroup(A::DecAlg: Checkclosed:= true) -> Grp, HomGrp
   { 
     Returns the Universal Miyamoto group of A for the subgroup H of the 
@@ -356,7 +374,7 @@ end intrinsic;
 
 intrinsic AxisMiyamotoGSet(A::AxlDecAlg) -> GSet
   {
-  Returns the permutation GSet given by the action of the Miyamoto grou on the axes.
+  Returns the permutation GSet given by the action of the Miyamoto group on the axes.
   }
   // TO DO
 end intrinsic;

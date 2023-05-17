@@ -709,14 +709,15 @@ intrinsic '*'(x::DecAlgElt, g::GrpElt) -> DecAlgElt
     Returns the image of x under the action of g.
   }
   A := Parent(x);
-  if ExistsCoveringStructure(Parent(g), UniversalMiyamotoGroup(A)) and Parent(g) eq UniversalMiyamotoGroup(A) then
+  if assigned A`universal_Miyamoto_group and ExistsCoveringStructure(Parent(g), UniversalMiyamotoGroup(A)) and Parent(g) eq UniversalMiyamotoGroup(A) then
     g := A`universal_projection(g);
+    // Now g is in the Miyamoto group
   end if;
   if ExistsCoveringStructure(Parent(g), MiyamotoGroup(A)) and Parent(g) eq MiyamotoGroup(A) then
     mtrx := MiyamotoAction(A, g);
     return A!(Vector(Eltseq(x))*Matrix(mtrx));
   end if;
-  error "%o is not in the (Universal) Miyamoto group.";
+  error "%o is not in the (Universal) Miyamoto group.", g;
 end intrinsic;
 /*
 
@@ -838,6 +839,34 @@ intrinsic Parts(D::Dec) -> SeqEnum
   }
   el := Elements(FusionLaw(Parent(D)));
   return [ Part(D, x) : x in el ];
+end intrinsic;
+
+intrinsic '*'(D::Dec, g::GrpElt) -> Dec
+  {
+  Returns the image of D under the action of g.
+  }
+  require IsAttached(D): "The decomposition must be attached to an algebra.";
+  
+  A := Parent(D);
+  if assigned A`universal_Miyamoto_group and ExistsCoveringStructure(Parent(g), UniversalMiyamotoGroup(A)) and Parent(g) eq UniversalMiyamotoGroup(A) then
+    g := A`universal_projection(g);
+    // Now g is in the Miyamoto group
+  end if;
+  if ExistsCoveringStructure(Parent(g), MiyamotoGroup(A)) and Parent(g) eq MiyamotoGroup(A) then
+    mtrx := MiyamotoAction(A, g);
+    
+    newparts := {@ P*mtrx : P in Parts(D) @};
+      
+    if IsAxial(D) then
+      // NB had to Eltseq this otherwise, when loading an algebra, the decompositions are not yet defined and so equality and hence parent can't be checked when coercing.
+      newaxis := Eltseq(Axis(D)*g);
+      newD := AxialDecomposition(A, newparts, newaxis);
+    else
+      newD := Decomposition(A, newparts, newaxis);
+    end if;   
+    return newD;
+  end if;
+  error "%o is not in the (Universal) Miyamoto group.", g;
 end intrinsic;
 
 intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng]) -> FusLaw
