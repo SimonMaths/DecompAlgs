@@ -400,6 +400,10 @@ intrinsic ChangeRing(A::AxlAlg, S::Rng: allow_collapse:=false) -> DecAlg
                   [ ChangeRing(MiyamotoAction(A,g), S) : g in Generators(G)]>;    
   end if;  
   
+  if assigned A`Frobenius_form then
+    Anew`Frobenius_form := ChangeRing(FrobeniusForm(A), S);
+  end if;
+  
   return Anew;
 end intrinsic;
 

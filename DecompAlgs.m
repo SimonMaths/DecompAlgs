@@ -626,7 +626,7 @@ intrinsic IsCoercible(A::DecAlg, x::.) -> BoolElt, .
     return true, x;
   elif ISA(Type(x), AlgElt) and x in Algebra(A) then
     return true, CreateElement(A, x);
-  elif ISA(Type(x), ModTupFldElt) and x in VectorSpace(A) then
+  elif ISA(Type(x), ModTupFldElt) and IsCoercible(VectorSpace(A), x) then
     return true, CreateElement(A, x);
   elif ISA(Type(x), SeqEnum) and IsCoercible(Algebra(A), x) then
     return true, CreateElement(A, x);

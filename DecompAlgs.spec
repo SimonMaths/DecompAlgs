@@ -8,5 +8,6 @@
   DecompAlgs_group.m
   AxialAlgs.m
   FrobeniusForm.m
+  DecompAlgs_json.m
   #wip.m
 }
