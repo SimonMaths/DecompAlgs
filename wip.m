@@ -94,7 +94,7 @@ intrinsic JordanDecompositionAlgebra(n::RngIntElt, q::RngIntElt) -> DecAlg
   dd := #PI div 10;
   for a in PI do
     cnt +:= 1;
-    parts := {@ sub<vs | Eigenspace(AdjointMatrix(a), l) > : l in [k | 1, 0, half ] @};
+    parts := [ sub<vs | Eigenspace(AdjointMatrix(a), l) > : l in [k | 1, 0, half ] ];
     decs[cnt] := Decomposition(A, parts);
     if cnt div dd gt pdec then
       printf "%o", pdec;
@@ -1171,7 +1171,7 @@ intrinsic ChangeBasis(A::DecAlg, B::Mtrx) -> DecAlg
   decs := AssociativeArray();
   for i in [1..#bases] do
     basis := bases[i];
-    parts := {@ sub<vs| b> : b in basis @};
+    parts := [ sub<vs| b> : b in basis ];
     if axl then
       axis := axes[i];
       Dnew := AxialDecomposition(Anew, parts, axis);
@@ -1542,7 +1542,7 @@ intrinsic SymDec(n::RngIntElt, i::RngIntElt, j::RngIntElt, k::RngIntElt)
   pt1 := sub<V|a[i]>;
   pt2 := sub<V|[ a[i] + (n-1)*a[l] : l in {1..n} diff {i,j,k} ]>;
   pt3 := sub<V|a[j]-a[k]>;
-  return {@ pt1, pt2, pt3 @};
+  return [ pt1, pt2, pt3 ];
 end intrinsic;
 
 intrinsic DihDec(n::RngIntElt, i::RngIntElt)
@@ -1568,13 +1568,7 @@ intrinsic DihDec(n::RngIntElt, i::RngIntElt)
 
   // Difference of swapped axes: eg. a_1 - a_{n-1}
   pt3 := sub<V|[ a[l] - a[n-l] : l in {1..k} ]>;
-  return {@ pt1, pt2, pt3 @};
-end intrinsic;
-
-intrinsic Parts(D::Dec) -> SeqEnum
-  {}
-  el := Elements(FusionLaw(Parent(D)));
-  return [ Part(D, x) : x in el ];
+  return [ pt1, pt2, pt3 ];
 end intrinsic;
 
 intrinsic SymmetricGroupAxialDecompositionAlgebra(n::RngIntElt) -> AxlDecAlg

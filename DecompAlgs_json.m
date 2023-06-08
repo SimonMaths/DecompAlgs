@@ -77,7 +77,9 @@ intrinsic DecAlgToList(A::DecAlg) -> List
     Append(~alg, <"IsMiyamotoClosed", true>);
     // We will only store orbit representatives of the decompositions
     Ds := DecompositionOrbitRepresentatives(A);
-    keys := {@ Position(Ds, D) : k in IndexSet(A) | D in Ds where D := Decompositions(A)[k] @};
+    keys := {@ k where so := exists(k){ k : k in IndexSet(A) | Decompositions(A)[k] eq D}
+                 : D in Ds @};
+    assert #keys eq #Ds;
   else
     Append(~alg, <"IsMiyamotoClosed", false>);
     Ds := Decompositions(A);
@@ -86,15 +88,15 @@ intrinsic DecAlgToList(A::DecAlg) -> List
   
   FL := FusionLaw(A);
   decomps := AssociativeArray();
-  for i in keys do
+  for i in [1..#keys] do
     D := Ds[i];
     decomp := AssociativeArray();
     // Need to run over the elements in the set, rather than FusLawElts so they can be JSONised
-    decomp["parts"] := [* [* x, BasisMatrix(Part(D, FL!x)) *] : x in FL`set *];
+    decomp["parts"] := [* [* x, Part(D, FL!x) *] : x in FL`set *];
     if IsAxial(D) then
       decomp["axis"] := Eltseq(Axis(D));
     end if;
-    decomps[i] := decomp;  
+    decomps[keys[i]] := decomp;  
   end for;
   Append(~alg, <"decompositions", decomps>);
   
@@ -183,14 +185,13 @@ intrinsic DecompositionAlgebra(alg::Assoc) -> DecAlg
     partkeys := {@ t[1] : t in decs[k]["parts"] @};
     assert forall{ i : i in partkeys | IsCoercible(FusionLaw(A), i)} and #partkeys eq #FusionLaw(A);
     
-    S := {@ sub<V | Numbers(t[2]) > : t in decs[k]["parts"] @};
-    f := func<U | FusionLaw(A)!partkeys[Position(S, U)]>;
+    S := [ RSpace(t[2]) : t in decs[k]["parts"] ];
     
     if "axis" in Keys(decs[k]) then
       axis := Numbers(decs[k]["axis"]);
-      D := AxialDecomposition(A, S, axis: labels:=f);
+      D := AxialDecomposition(A, S, axis);
     else
-      D := Decomposition(A, S: labels:=f);
+      D := Decomposition(A, S);
     end if;
     
     kk := eval(k); // This is normally a RngIntElt, but could be something else
@@ -198,7 +199,7 @@ intrinsic DecompositionAlgebra(alg::Assoc) -> DecAlg
   end for;
   
   if alg["IsMiyamotoClosed"] then
-    // Assume if it is Miyamoto closed, the permutation group G has the natural action on the kerys of the decompositions.
+    // Assume if it is Miyamoto closed, the permutation group G has the natural action on the keys of the decompositions.
     G := MiyamotoGroup(A);
     Ax := GSet(G);
     orbits := Orbits(G);

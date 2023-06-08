@@ -280,6 +280,7 @@ intrinsic DecompositionOrbitRepresentatives(A::DecAlg) -> SetIndx
   
   // This is a bit dirty, but still
   orbits := {@ {@ D*g : g in G @} : D in Decompositions(A) @};
+  //print orbits;
   return {@ o[1] : o in orbits @};
 end intrinsic;
 
