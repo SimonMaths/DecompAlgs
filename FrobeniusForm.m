@@ -3,6 +3,7 @@
 =========== Code to find Frobenius form =============
 
 */
+// Edit this as the ParAxlAlg version is quicker!
 /*
 
 For a bracketed expression eg <1,<2,3>>, return which shell it is in ie how many products are needed.
