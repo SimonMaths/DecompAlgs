@@ -2,8 +2,11 @@
 
 =========== Code to find Frobenius form =============
 
+Here we will represent products of axes by tuples
+
+eg <1,<2,3>> represents a_1*(a_2*a_3)
+
 */
-// Edit this as the ParAxlAlg version is quicker!
 /*
 
 For a bracketed expression eg <1,<2,3>>, return which shell it is in ie how many products are needed.
@@ -54,30 +57,15 @@ function NormaliseTup(L)
 end function;
 /*
 
-Find a product of a bracket L, where shell is a complete list of products up to a given length and A is the algebra.
+Find a product of a bracket L and axes are the axes.
 
 */
-function FindProduct(A, shell, L)
-  axes_shell := [ p : p in shell | Type(p[1]) eq RngIntElt];
-  
+function EvaluateBracket(axes, L)
   if Type(L) eq RngIntElt then
-    so := exists(v){p[2] : p in axes_shell | p[1] eq L};
-    assert so;
-    return v;
-  end if;
-  
-  m := Max({ ShellLength(p[1]) : p in shell});
-  // assume all products of length up to m are in shell
-  
-  L := NormaliseTup(L);
-  // we may have already calculated this product
-  if ShellLength(L) lt m and exists(v){ shell[k,2] : k in [1..#shell] | L cmpeq shell[k,1]} then
-    return v;
+    return axes[L];
   else
-    // recurse
-    x := FindProduct(A, shell, L[1]);
-    y := FindProduct(A, shell, L[2]);
-    return x*y;
+    assert Type(L) eq Tup and #L eq 2;
+    return EvaluateBracket(axes, L[1])*EvaluateBracket(axes, L[2]);
   end if;
 end function;
 /*
@@ -175,7 +163,7 @@ intrinsic ShellBasis(A::AxlAlg) -> List, List
     // add all the new shell to all_shell
     all_shell cat:= newshell;
     
-    // Now sieve these to find a basis
+    // We don't yet have a basis, so we sieve to add basis elements
     extra := [ Vector(p[2]) : p in newshell];
     index := CompleteToBasis(bas, extra);
     bas cat:= extra[index];
@@ -197,52 +185,51 @@ intrinsic HasFrobeniusForm(A::AxlAlg) -> BoolElt, AlgMatElt
   
   require IsCommutative(A): "The algebra must be commutative";
   
-  bas, shell := ShellBasis(A);
+  bas, _ := ShellBasis(A);
   
-  axes := {@ p : p in bas | Type(p[1]) eq RngIntElt @};
-  axes := {@ p[2] : p in Sort(axes, func<x,y|x[1]-y[1]>)@}; // in case they are out of order
+  axes := {@ p[2] : p in bas | Type(p[1]) eq RngIntElt @};
   
-  // could precompute vector spaces for each axis is this is slow
+  // Precompute vector spaces for each axis to speed up projection step
+  Vs := [];
+  for i in [1..#axes] do
+    dec := Decomposition(axes[i]);
+    so := exists(P){ P : P in Parts(dec) | Vector(axes[i]) in P};
+    assert so; // The axis is by definition in some part
+  
+    require Dimension(P) eq 1: "The axis is not primitive";
+    V := VectorSpaceWithBasis([Vector(axes[i])] cat &cat[ Basis(U) : U in Parts(dec) | U ne P]);
+    Append(~Vs, V);
+  end for;
+  
   form := [[] : i in [1..#bas]];
   for i in [1..#bas] do
-    ib, ip := Explode(bas[i]);
+    ib, _ := Explode(bas[i]);
     for j in [1..i] do
-      jb, jp := Explode(bas[j]);
+      jb, _ := Explode(bas[j]);
       a, L := ShiftProducts(ib, jb);
-      v := FindProduct(A, shell, L);
-      form[i,j] := Projection(axes[a], v);
+      v := EvaluateBracket(axes, L);
+      form[i,j] := Coordinates(Vs[a], Vector(v))[1]; // We use our precomputed vector spaces
     end for;
   end for;
   form := SymmetricMatrix(&cat form);
   
+  // Change basis
+  bas_to_std := Matrix([Vector(t[2]) : t in bas])^-1;
+  form := bas_to_std*form*Transpose(bas_to_std);
+    
   vprint DecAlg, 1: "Checking the form.";
   // To check form just need to check on a basis
-  // Since (i,jk) = (ij,k) implies (k,ji) = (kj,i) just need to check for k \leq i
+  // Fix e_j, we need to check that for all i, k we have (ij,k) = (i,jk)
+  // This is equivalent to checking the matrix condition ad_(e_j)*form = form*ad_(e_j)^t
+  // Since form is symmetric, form*ad_(e_j)^t = (ad_(e_j)*form)^t
+  // So it is enough to check that ad_(e_j)*form is symmetric
   
-  // precompute the matrices of all the bas[i]*bas[j]
-  basmults := [[] : i in [1..#bas]];
-  for i in [1..#bas] do
-    ib, ip := Explode(bas[i]);
-    for j in [1..#bas] do
-      jb, jp := Explode(bas[j]);
-      basmults[i][j] := Vector(FindProduct(A, shell, <ib,jb>));
-    end for;
-  end for;
-  basmults := [Matrix(M) : M in basmults];
-  
-  // Now, to check (e_i,e_j*e_k) = (e_i*e_j, e_k), build matrices over i and k
-
-  std_to_bas := Matrix([Vector(t[2]) : t in bas]);
-  bas_to_std := std_to_bas^-1;
-  
-  for j in [1..#bas] do
-    if form*Transpose(basmults[j]*bas_to_std) ne basmults[j]*bas_to_std*form then
-      return false, _;
-    end if;
-  end for;
+  if not forall{ i : i in [1..Dimension(A)] | IsSymmetric(AdjointMatrix(A.i)*form) } then
+    return false, _;
+  end if;
   
   // cache the form for future use
-  A`Frobenius_form := bas_to_std*form*Transpose(bas_to_std);
+  A`Frobenius_form := form;
   
   return true, A`Frobenius_form;
 end intrinsic;
