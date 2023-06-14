@@ -76,10 +76,9 @@ intrinsic DecAlgToList(A::DecAlg) -> List
   if assigned A`Miyamoto_group and IsMiyamotoClosed(A) then
     Append(~alg, <"IsMiyamotoClosed", true>);
     // We will only store orbit representatives of the decompositions
-    Ds := DecompositionOrbitRepresentatives(A);
-    keys := {@ k where so := exists(k){ k : k in IndexSet(A) | Decompositions(A)[k] eq D}
-                 : D in Ds @};
-    assert #keys eq #Ds;
+    G := MiyamotoGroup(A);
+    keys := {@ t[2] : t in OrbitRepresentatives(G) @};
+    Ds := {@ Decompositions(A)[i] : i in keys @};
   else
     Append(~alg, <"IsMiyamotoClosed", false>);
     Ds := Decompositions(A);

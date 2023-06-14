@@ -75,9 +75,11 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
     sym := Sym(IndexSet(A));
     CG, cg := CharacterGroup(A);
     IS := GSet(sym);
+    
     vprintf DecompAlgsGrp: "    Calculating matrices... [";
     mats := {};
-    pdec := 0;
+    
+    pdec := 0;   // for a progress counter
     cnt := 0;
     dd := Max((#IS * #CG) div 10,1);
     for i in IS do
@@ -86,18 +88,19 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
         Include(~mats, mat);
         cnt +:= 1;
         if pdec ne cnt div dd then
-          vprintf DecompAlgsGrp: "%o", pdec;
+          vprintf DecompAlgsGrp: "%o", pdec; // a progress counter
           pdec := cnt div dd;
         end if;
       end for;
     end for;
     vprintf DecompAlgsGrp: "]\n";
+    
     vprintf DecompAlgsGrp: "    Calculating matrix group... ";
     n := Dimension(A);
     R := BaseRing(A);
-    GLN := GL(n,R);
-    M := sub<GLN | mats >;
+    M := MatrixGroup<n,R | mats>;
     vprintf DecompAlgsGrp: "done]\n";
+    
     vprintf DecompAlgsGrp: "    Reducing generators... [";
     smallgens := [];
     smallM := sub<M|>;
@@ -108,6 +111,7 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
       end if;
     end for;
     vprintf DecompAlgsGrp: "done]\n";
+    
     vprintf DecompAlgsGrp: "    Calculating hom to perm group... [";
     X := Elements(FusionLaw(A));
     Ds := [* Decompositions(A)[i] : i in IS *];
@@ -272,16 +276,22 @@ intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg, SetMulti
   return A;
 end intrinsic;
 
-intrinsic DecompositionOrbitRepresentatives(A::DecAlg) -> SetIndx
+intrinsic DecompositionOrbitRepresentatives(A::DecAlg: Miyamoto_closed := IsMiyamotoClosed(A)) -> SetIndx
   {
   Returns orbit representatives of the decompositions under the action of the Miyamoto group.
+    
+  Optional argument Miyamoto_closed is for whether the algebra is Miyamoto closed.  Default is to check as this hugely speeds up the calculation.
   }
   G := MiyamotoGroup(A);
-  
-  // This is a bit dirty, but still
-  orbits := {@ {@ D*g : g in G @} : D in Decompositions(A) @};
-  //print orbits;
-  return {@ o[1] : o in orbits @};
+  // If the algebra is Miyamoto closed then the Miyamoto group will have been calculated as a permutation group on the decompositions.
+  if Miyamoto_closed then
+    orb_reps := [ t[2] : t in OrbitRepresentatives(G)];
+    return Decompositions(A)[orb_reps];
+  else  
+    // This is a bit dirty, but still
+    orbits := {@ {@ D*g : g in G @} : D in Decompositions(A) @};
+    return {@ o[1] : o in orbits @};
+  end if;
 end intrinsic;
 
 intrinsic UniversalMiyamotoGroup(A::DecAlg: Checkclosed:= true) -> Grp, HomGrp

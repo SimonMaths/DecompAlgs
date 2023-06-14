@@ -228,6 +228,8 @@ intrinsic HasFrobeniusForm(A::AxlAlg) -> BoolElt, AlgMatElt
     return false, _;
   end if;
   
+  // This could also be checked as a Sylvester problem using kronecker products, but this was much slower for the 46-dim A5
+  
   // cache the form for future use
   A`Frobenius_form := form;
   
