@@ -103,7 +103,11 @@ intrinsic DecAlgToList(A::DecAlg) -> List
     assert assigned A`Miyamoto_map;
     
     gen := GeneratorsSequence(MiyamotoGroup(A));
-    Append(~alg, <"Miyamoto action", [* [*gen[i], MiyamotoAction(A, gen[i]) *] : i in [1..#gen] *]>);
+    if IsEmpty(gen) then
+      Append(~alg, <"Miyamoto action",[* [* [1..Degree(MiyamotoGroup(A))], IdentityMatrix(BaseRing(A), Dimension(A)) *] *]>);
+    else
+      Append(~alg, <"Miyamoto action", [* [*gen[i], MiyamotoAction(A, gen[i]) *] : i in [1..#gen] *]>);
+    end if;
   end if;
   
   if assigned A`universal_Miyamoto_group then

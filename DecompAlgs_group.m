@@ -286,7 +286,7 @@ intrinsic DecompositionOrbitRepresentatives(A::DecAlg: Miyamoto_closed := IsMiya
   // If the algebra is Miyamoto closed then the Miyamoto group will have been calculated as a permutation group on the decompositions.
   if Miyamoto_closed then
     orb_reps := [ t[2] : t in OrbitRepresentatives(G)];
-    return Decompositions(A)[orb_reps];
+    return {@ Decompositions(A)[i] : i in orb_reps @};
   else  
     // This is a bit dirty, but still
     orbits := {@ {@ D*g : g in G @} : D in Decompositions(A) @};

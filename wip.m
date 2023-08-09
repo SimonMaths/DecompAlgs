@@ -1147,7 +1147,7 @@ intrinsic ChangeBasis(A::DecAlg, B::Mtrx) -> DecAlg
   }
   if ISA(Type(A), AxlDecAlg) then
     axl := true;
-    Anew := New(AxlDecAlg);
+    Anew := New(Type(A));
   else
     axl := false;
     Anew := New(DecAlg);
