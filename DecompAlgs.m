@@ -867,7 +867,21 @@ intrinsic '*'(x::DecAlgElt, g::GrpElt) -> DecAlgElt
     mtrx := MiyamotoAction(A, g);
     return A!(Vector(Eltseq(x))*Matrix(mtrx));
   end if;
-  error "%o is not in the (Universal) Miyamoto group.", g;
+  if Type(g) eq GrpMatElt then
+    return x*Matrix(g);
+  end if;
+  error Sprintf("%o is not in the (Universal) Miyamoto group.", g);
+end intrinsic;
+
+intrinsic '*'(x::DecAlgElt, M::AlgMatElt) -> DecAlgElt
+  {
+  Returns the image of x under the action of the matrix.
+  }
+  A := Parent(x);
+  require Nrows(M) eq Ncols(M) and Nrows(M) eq Dimension(A): "The matrix must be a square matrix of the correct dimension";
+  require BaseRing(M) eq BaseRing(A): "The algebra and the matrix must have the same field.";
+  
+  return A!(Vector(x)*M);
 end intrinsic;
 /*
 intrinsic '@'(x::DecAlgElt, phi::Map) -> DecAlgElt
@@ -1033,7 +1047,7 @@ intrinsic '*'(D::Dec, g::GrpElt) -> Dec
     end if;
     return newD;
   end if;
-  error "%o is not in the (Universal) Miyamoto group.", g;
+  error Sprintf("%o is not in the (Universal) Miyamoto group.", g);
 end intrinsic;
 
 intrinsic FusionLaw(A::AlgGen, parts::[ModTupRng]) -> FusLaw

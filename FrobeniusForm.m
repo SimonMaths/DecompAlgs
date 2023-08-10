@@ -70,7 +70,7 @@ function EvaluateBracket(axes, L)
 end function;
 /*
 
-Given a basis of a subspace and some extra vectors sieve the extra vectors to form a basis of the space spanned by all vectors
+Given a basis of a subspace and some extra vectors sieve the extra vectors to form a basis of the space spanned by all vectors.  Returns the indices of the required extra vectors for the basis.
 
 */
 function CompleteToBasis(bas, extra)
