@@ -421,10 +421,13 @@ intrinsic ChangeRing(A::AxlAlg, S::Rng: allow_collapse:=false) -> DecAlg
   
   if assigned A`Miyamoto_map then
     assert assigned A`Miyamoto_group;
-    Miy_mat := Image(A`Miyamoto_map);
     G := MiyamotoGroup(Anew);
-    Anew`Miyamoto_map := hom<G -> ChangeRing(Miy_mat, S) | 
-                  [ ChangeRing(MiyamotoAction(A,g), S) : g in Generators(G)]>;    
+    
+    Ggen := GeneratorsSequence(G);
+    matgens := [ ChangeRing(MiyamotoAction(A, Ggen[i]), S) : i in [1..#Ggen]];
+    matG := MatrixGroup<Dimension(A), BaseRing(A) | matgens>;
+    Anew`Miyamoto_map := hom<G -> matG | 
+                  [ <Ggen[i], matG!matgens[i] > : i in [1..#Ggen]]>;  
   end if;  
   
   if assigned A`Frobenius_form then
