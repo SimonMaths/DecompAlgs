@@ -67,12 +67,14 @@ intrinsic IdentifyFusionLaw(a::DecAlgElt: eigenvalues := Eigenvalues(a)) -> SetE
   return IdentifyFusionLaw(A!Eltseq(a): eigenvalues := eigenvalues);
 end intrinsic;
 
-intrinsic MiyamotoInvolution(a::DecAlgElt, lm::RngElt) -> AlgMatElt
+intrinsic MiyamotoInvolution(a::DecAlgElt, lm::RngElt: check_fusion:= true) -> AlgMatElt
   {
   The Miyamoto involution for the axis a with respect to the eigenspace lm.  Note the fusion law must be graded and lm be in a part which is mapped to an involution.
+  
+  Option argument to check the fusion law.
   }
   A := Algebra(Parent(a));
-  return MiyamotoInvolution(A!Eltseq(a), lm);
+  return MiyamotoInvolution(A!Eltseq(a), lm: check_fusion := check_fusion);
 end intrinsic;
 
 intrinsic MiyamotoInvolution(a::DecAlgElt) -> AlgMatElt
