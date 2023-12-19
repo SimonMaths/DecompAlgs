@@ -146,6 +146,48 @@ intrinsic RemoveDecomposition(A::DecAlg, i::.) -> DecAlg
   return A;
 end intrinsic;
 
+intrinsic AddDecomposition(~A::DecAlg, D::Dec)
+  {
+  Adds a decomposition D to A.
+  }
+  if ISA(Type(A), AxlDecAlg) then
+    require Type(D) eq AxlDec: "The decomposition must be axial to add to an axial decomposition algebra.";
+  end if;
+  require Algebra(D) eq A: "The decomposition given is not a decomposition of A.";
+  require Universe(IndexSet(A)) eq Integers(): "This function is currently only available when the decompositions are indexed by the integers.";
+  
+  k := Max(IndexSet(A)) +1;
+  A`decompositions[k] := D;
+  
+  // Need to delete or update the Miyamoto group
+  for char in [ "Miyamoto_group", "Miyamoto_map", "universal_Miyamoto_group", "universal_projection"] do
+    delete A``char;
+  end for;
+end intrinsic;
+
+intrinsic AddDecomposition(A::DecAlg, D::Dec) -> DecAlg
+  {
+  Adds a decomposition D to A.
+  }
+  if ISA(Type(A), AxlDecAlg) then
+    require Type(D) eq AxlDec: "The decomposition must be axial to add to an axial decomposition algebra.";
+  end if;
+  require Algebra(D) eq A: "The decomposition given is not a decomposition of A.";
+  require Universe(IndexSet(A)) eq Integers(): "This function is currently only available when the decompositions are indexed by the integers.";
+  
+  A := CopyDecompositionAlgebra(A);
+  
+  k := Max(IndexSet(A)) +1;
+  A`decompositions[k] := D;
+  
+  // Need to delete or update the Miyamoto group
+  for char in [ "Miyamoto_group", "Miyamoto_map", "universal_Miyamoto_group", "universal_projection"] do
+    delete A``char;
+  end for;
+  
+  return A;
+end intrinsic;
+
 intrinsic RemoveDecompositions(~A::DecAlg, I::.)
   {
     Removes the decompositions in I from A.
@@ -166,6 +208,26 @@ intrinsic RemoveDecompositions(A::DecAlg, I::.) -> DecAlg
   return A;
 end intrinsic;
 
+intrinsic AddDecompositions(~A::DecAlg, I::.)
+  {
+    Adds decompositions in I to A.
+  }
+  for i in I do
+    AddDecomposition(~A, i);
+  end for;
+end intrinsic;
+
+intrinsic AddDecompositions(A::DecAlg, I::.) -> DecAlg
+  {
+    Adds decompositions in I to A.
+  }
+  A := CopyDecompositionAlgebra(A);
+  
+  for i in I do
+    AddDecomposition(~A, i);
+  end for;
+  return A;
+end intrinsic;
 /*
 
 ======= Invariants of an algebra =======

@@ -174,6 +174,19 @@ intrinsic MiyamotoElement(A::DecAlg, i::., x::GrpElt) -> GrpElt
   return mtrx@@A`Miyamoto_map;
 end intrinsic;
 
+intrinsic MiyamotoElement(A::DecAlg, i::.) -> GrpElt
+  {
+    For a C_2-graded fusion law, return the Miyamoto element \tau_i.
+  }
+  CG, cg := CharacterGroup(A);
+  require Order(CG) eq 2: "The fusion law must be C_2-graded.";
+
+  Miy := MiyamotoGroup(A);
+  
+  mtrx := miy_matrix(A, i, cg(CG.1));
+  return mtrx@@A`Miyamoto_map;
+end intrinsic;
+
 intrinsic MiyamotoPermutation(A::DecAlg, i::., x::GrpElt) -> GrpElt
   {
     perm;
@@ -192,6 +205,36 @@ intrinsic MiyamotoPermutation(A::DecAlg, i::., x::GrpElt) -> GrpElt
   require isit: "A is not Miyamoto closed with respect to given element.";
   return sym!IS[perm];
 end intrinsic;
+
+intrinsic SigmaElement(A::DecAlg, i::.) -> GrpElt
+  {
+  Returns the Sigma involution of the ith decomposition D.
+  
+  A must have a C_2-graded fusion law and the non-trivially graded parts of D must all be trivial.  The subfusion law induced on the non-trivial parts of D must also be C_2-graded and the sigma involution is the Miyamoto involution with respect to this sub fusion law.
+  }
+  FL := FusionLaw(A);
+  Gr, gr := Grading(FL);
+  require Order(Gr) eq 2: "The algebra must have a C_2-graded fusion law.";
+  
+  D := Decompositions(A)[i];
+  Delts := { e : e in Elements(FL) | Dimension(Part(D, e)) ne 0};
+  require forall{ e : e in Delts | gr(e) eq Gr!1}: "The ith decomposition must be trivially graded with respect to the fusion law.";
+  
+  FLsub := sub<FL | Delts>;
+  Grsub, grsub := Grading(FLsub);
+  require Order(Grsub) eq 2: "The subfusion law must be C_2-graded.";
+  
+  Xsub := FLsub`set; // Can't use Elements as the coersion between fusion laws and subfusion laws doesn't work
+  pos := &+[Part(D,FL!i) : i in Xsub | grsub(i) eq Grsub!1];
+  neg := &+[Part(D,FL!i) : i in Xsub | grsub(i) ne Grsub!1];
+  BM := Matrix(Basis(pos) cat Basis(neg));
+  
+  F := BaseRing(pos);
+  M := DiagonalJoin(IdentityMatrix(F, Dimension(pos)),
+                                      -IdentityMatrix(F, Dimension(neg)));
+  return BM^-1 * M * BM;
+end intrinsic;
+
 
 intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt, SetMulti
   {
@@ -248,7 +291,7 @@ end intrinsic;
 intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg, SetMulti
   {
     Returns a Miyamoto closed version of A by adding additional decompositions 
-      if needed.
+      if needed.  Warning: the decompositions may be in a different order to before.
   }
   if ISA(Type(A), AxlDecAlg) then
     isaxl := true;
@@ -264,10 +307,10 @@ intrinsic MiyamotoClosure(A::DecAlg) -> DecAlg, SetMulti
       cnt +:= 1;
       if isaxl then
         axis := VectorSpace(A)!x[1];
-        parts := {@ sub< vs | xx > : xx in x[2] @};
+        parts := [ sub< vs | xx > : xx in x[2] ];
         (A`decompositions)[cnt] := AxialDecomposition(A, parts, axis);
       else
-        parts := {@ sub< vs | xx > : xx in x @};
+        parts := [ sub< vs | xx > : xx in x ];
         (A`decompositions)[cnt] := Decomposition(A, parts);
       end if;
     end for;
