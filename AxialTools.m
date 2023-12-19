@@ -47,7 +47,7 @@ end intrinsic;
 check semisimplicity
 
 */
-intrinsic IsSemisimple(a::DecAlgElt) -> BoolElt, SetEnum, SetIndx
+intrinsic IsSemisimple(a::DecAlgElt) -> BoolElt, SeqEnum, SetIndx
   {
   Returns whether the element semisimple.  If true also returns the set of eigenvalues and the eigenspaces.
   }
@@ -59,7 +59,7 @@ end intrinsic;
 Identify fusion law
 
 */
-intrinsic IdentifyFusionLaw(a::DecAlgElt: eigenvalues := Eigenvalues(a)) -> SetEnum, SetIndx, FusLaw
+intrinsic IdentifyFusionLaw(a::DecAlgElt: eigenvalues := Eigenvalues(a)) -> SetEnum, SeqEnum, FusLaw
   {
   If the element is semisimple, returns the eigenvalues, eigenspaces and fusion law.  Optional argument to provide an indexed set of eigenvalues in the desired order.
   }
