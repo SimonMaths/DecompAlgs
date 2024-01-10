@@ -51,6 +51,30 @@ function miy_matrix(A,i,x);
   return BM^-1 * M * BM;
 end function;
 
+// Written a wrapper for the moment.  Why should this and miy_matrix be different??
+// Can return the matrix without calculating the miyamoto group.
+intrinsic MiyamotoMatrix(A::DecAlg, i::., x::GrpElt) -> AlgMatElt
+  {
+  Returns the matrix for the Miyamoto element \tau_i,x.
+  }
+  require i in IndexSet(A): "i does not index a decomposition of A.";
+  CG, cg := CharacterGroup(A);
+  
+  require x in CG: "x must be in the Character group of A.";
+  
+  return miy_matrix(A, i, cg(x));
+end intrinsic;
+
+intrinsic MiyamotoMatrix(A::DecAlg, i::.) -> AlgMatElt
+  {
+  Given a C_2-graded decomposition algebra A, return the matrix for the Miyamoto element \tau_i.
+  }
+  CG, cg := CharacterGroup(A);
+  require Order(CG) eq 2: "The fusion law must be C_2-graded.";
+  
+  return MiyamotoMatrix(A, i, CG.1);
+end intrinsic;
+
 function matgrp_to_permgrp(MG);
   vprintf DecompAlgsGrp: "    Calculating FP group... [";
   FP, FPToMG := FPGroup(MG);
@@ -95,7 +119,7 @@ intrinsic MiyamotoGroup(A::DecAlg) -> Grp
     end for;
     vprintf DecompAlgsGrp: "]\n";
     
-    vprintf DecompAlgsGrp: "    Calculating matrix group... ";
+    vprintf DecompAlgsGrp: "    Calculating matrix group... [";
     n := Dimension(A);
     R := BaseRing(A);
     M := MatrixGroup<n,R | mats>;
@@ -198,7 +222,7 @@ intrinsic MiyamotoPermutation(A::DecAlg, i::., x::GrpElt) -> GrpElt
   Ds := [* Decompositions(A)[i] : i in IS *];
   DVS := [ [ Part(D,x) : x in X ] : D in Ds ];
   OriginalBases := [ [ Basis(VS) : VS in DVSi ]:DVSi in DVS ];
-  M := MiyamotoAction(A, MiyamotoElement(A, i, x));
+  M := MiyamotoMatrix(A, i, x);
   DVSM := [ [ P*M : P in Ps ] : Ps in DVS ];
   NewBases := [ [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM ];
   isit, perm := IsPermutation(OriginalBases, NewBases);
@@ -258,7 +282,7 @@ intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt, SetMulti
   end if;
   for idx in [1..#IS] do
     i := IS[idx];
-    M := MiyamotoAction(A, MiyamotoElement(A, i, x));
+    M := MiyamotoMatrix(A, i, x);
     if isaxl then
       DVSM := [ <Ps[1]*M,[ P*M : P in Ps[2] ]> : Ps in DVS ];
       NewBases := {* <DVSMi[1],[ Basis(VS) : VS in DVSMi[2] ]>:DVSMi in DVSM *};
@@ -280,6 +304,9 @@ intrinsic IsMiyamotoClosed(A::DecAlg) -> BoolElt, SetMulti
   CG, cg := CharacterGroup(A);
   perms := AssociativeArray();
   for x in CG do
+    if IsIdentity(x) then
+      continue;
+    end if;
     isclosed, extra := IsMiyamotoClosed(A, x);
     if not isclosed then
       return false, extra;
