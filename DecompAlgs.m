@@ -306,24 +306,24 @@ end intrinsic;
 
 intrinsic VectorSpace(A::DecAlg) -> Alg
   {
-    Returns the underlying algebra for A.
+  Returns the underlying vector space for A.
   }
   return VectorSpace(Algebra(A));
 end intrinsic;
 
 intrinsic Decompositions(A::DecAlg) -> Assoc
   {
-    Returns the decompositions of A as an associative array.
+  Returns the decompositions of A as an associative array.
   }
   return A`decompositions;
 end intrinsic;
 
 intrinsic IndexSet(A::DecAlg) -> Set
   {
-    Returns the set indexing the decompositions.
+  Returns the set indexing the decompositions.
   }
   keys := IndexedSet(Keys(A`decompositions));
-  // Sort as otherwise there is a wierd bug where the indexed set is in the wrong order and it causes issues!
+  // Sort as otherwise there is a weird bug where the indexed set is in the wrong order and it causes issues!
   try Sort(~keys);
   catch e;
   end try;

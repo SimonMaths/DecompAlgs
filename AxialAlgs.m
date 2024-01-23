@@ -172,10 +172,13 @@ intrinsic SubConstructor(A::AxlDecAlg, L::.) -> AxlDecAlg//, Map
   elif ISA(Type(L[1]), {MakeType("Set"), MakeType("SeqEnum")}) and IsCoercible(A, L[1,1]) then
     LL := [ Aalg | Aalg!Eltseq(x) : x in L[1]];
   end if;
+  
   // Need to do subalgebras and ideals
   // need to program subset for Decalgs
   
-  B, inc := sub<Algebra(A) | LL>;
+  // NB There is a MAGMA BUG in Subconstructor
+  // This is a work-around 
+  B, inc := Subalgebra(Aalg, LL);
   
   Anew := New(Type(A));
   Anew`fusion_law := FusionLaw(A);
@@ -437,6 +440,29 @@ intrinsic ChangeRing(A::AxlAlg, S::Rng: allow_collapse:=false) -> DecAlg
   return Anew;
 end intrinsic;
 
+intrinsic HasProjection(A::AxlAlg, U::ModTupFld) -> BoolElt, Map
+  {
+  Given an axial algebra with a Frobenius form and a subspace U of A, check whether there is a projection map from the vector space of A to U and if so, return it.
+  }
+  require U subset VectorSpace(A): "U must be a subspace of the vector space of A.";
+  
+  null := NullSpace(A`Frobenius_form*Transpose(BasisMatrix(U)));
+  if Dimension(null) + Dimension(U) ne Dimension(A) then
+    // there is no projection
+    return false, _;
+  end if;
+  
+  assert2 forall{ <n,u> : n in Basis(null), u in Basis(U) | Frobenius(A!n, A!u) eq 0};
+  
+  // form the change of basis matrix
+  CoB := VerticalJoin(BasisMatrix(U), BasisMatrix(null));
+  F := BaseRing(A);
+  M := DiagonalJoin(IdentityMatrix(F, Dimension(U)), ZeroMatrix(F, Dimension(null), Dimension(null)));
+  
+  mat := CoB^-1*M*CoB;
+  
+  return hom<VectorSpace(A) -> VectorSpace(A) | mat>;
+end intrinsic;
 /*
 
 ======= AxlAlgElt functions and operations =======
