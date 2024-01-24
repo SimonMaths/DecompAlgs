@@ -461,7 +461,7 @@ intrinsic HasProjection(A::AxlAlg, U::ModTupFld) -> BoolElt, Map
   
   mat := CoB^-1*M*CoB;
   
-  return hom<VectorSpace(A) -> VectorSpace(A) | mat>;
+  return true, hom<VectorSpace(A) -> VectorSpace(A) | mat>;
 end intrinsic;
 /*
 
