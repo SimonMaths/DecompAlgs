@@ -47,23 +47,17 @@ intrinsic Axes(A::AxlDecAlg) -> SetIndx[AxlDecAlgElt]
   return {@ Axis(Decompositions(A)[k]) : k in IndexSet(A) @};
 end intrinsic;
 
-intrinsic AxisOrbitRepresentatives(A::DecAlg: Miyamoto_closed := IsMiyamotoClosed(A)) -> SetIndx
+intrinsic AxisOrbitRepresentatives(A::DecAlg) -> SetIndx
   {
   Returns orbit representatives of the axes under the action of the Miyamoto group.
-  
-  Optional argument Miyamoto_closed is for whether the algebra is Miyamoto closed.  Default is to check as this hugely speeds up the calculation.
   }
-  G := MiyamotoGroup(A);
+  // This is much faster than checking for Miyamoto closure, checked on 151-dim S6 ex
+  G_mat := MiyamotoGroup(A)@MiyamotoActionMap(A);
 
-  // If the algebra is Miyamoto closed then the Miyamoto group will have been calculated as a permutation group on the decompositions.
-  if Miyamoto_closed then
-    orb_reps := [ t[2] : t in OrbitRepresentatives(G)];
-    return Axes(A)[orb_reps];
-  else  
-    // This is a bit dirty, but still
-    orbits := {@ {@ a*g : g in G @} : a in Axes(A) @};
-    return {@ o[1] : o in orbits @};
-  end if;
+  // Sort the smallest orbits first
+  orbits := Sort({@ Orbit(G_mat, Vector(a)) : a in Axes(A) @}, func<x,y|#x le #y select -1 else 1>);
+
+  return {@ A | Representative(o) : o in orbits @};
 end intrinsic;
 
 intrinsic IsPrimitive(A::AxlDecAlg) -> BoolElt
