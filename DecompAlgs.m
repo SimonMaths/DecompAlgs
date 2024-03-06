@@ -191,6 +191,11 @@ intrinsic RemoveDecomposition(A::DecAlg, i::.) -> DecAlg
   return A;
 end intrinsic;
 
+procedure add_decomp(~A, D)
+  k := Max(IndexSet(A)) +1;
+  A`decompositions[k] := D;
+end procedure;
+
 intrinsic AddDecomposition(~A::DecAlg, D::Dec)
   {
   Adds a decomposition D to A.
@@ -201,8 +206,7 @@ intrinsic AddDecomposition(~A::DecAlg, D::Dec)
   require Algebra(D) eq A: "The decomposition given is not a decomposition of A.";
   require Universe(IndexSet(A)) eq Integers(): "This function is currently only available when the decompositions are indexed by the integers.";
   
-  k := Max(IndexSet(A)) +1;
-  A`decompositions[k] := D;
+  add_decomp(~A, D);
   
   // Need to delete or update the Miyamoto group
   for char in [ "Miyamoto_group", "Miyamoto_map", "universal_Miyamoto_group", "universal_projection"] do
@@ -221,9 +225,7 @@ intrinsic AddDecomposition(A::DecAlg, D::Dec) -> DecAlg
   require Universe(IndexSet(A)) eq Integers(): "This function is currently only available when the decompositions are indexed by the integers.";
   
   A := CopyDecompositionAlgebra(A);
-  
-  k := Max(IndexSet(A)) +1;
-  A`decompositions[k] := D;
+  add_decomp(~A, D);
   
   // Need to delete or update the Miyamoto group
   for char in [ "Miyamoto_group", "Miyamoto_map", "universal_Miyamoto_group", "universal_projection"] do
@@ -257,8 +259,19 @@ intrinsic AddDecompositions(~A::DecAlg, I::.)
   {
     Adds decompositions in I to A.
   }
+  if ISA(Type(A), AxlDecAlg) then
+    require forall{ D : D in I | Type(D) eq AxlDec}: "The decompositions must all be axial to add to an axial decomposition algebra.";
+  end if;
+  require forall{ D : D in I | Algebra(D) eq A}: "The decompositions given are not all decompositions of A.";
+  require Universe(IndexSet(A)) eq Integers(): "This function is currently only available when the decompositions are indexed by the integers.";
+  
   for i in I do
-    AddDecomposition(~A, i);
+    add_decomp(~A, i);
+  end for;
+  
+  // Need to delete or update the Miyamoto group
+  for char in [ "Miyamoto_group", "Miyamoto_map", "universal_Miyamoto_group", "universal_projection"] do
+    delete A``char;
   end for;
 end intrinsic;
 
@@ -266,11 +279,22 @@ intrinsic AddDecompositions(A::DecAlg, I::.) -> DecAlg
   {
     Adds decompositions in I to A.
   }
-  A := CopyDecompositionAlgebra(A);
-  
+  if ISA(Type(A), AxlDecAlg) then
+    require forall{ D : D in I | Type(D) eq AxlDec}: "The decompositions must all be axial to add to an axial decomposition algebra.";
+  end if;
+  require forall{ D : D in I | Algebra(D) eq A}: "The decompositions given are not all decompositions of A.";
+  require Universe(IndexSet(A)) eq Integers(): "This function is currently only available when the decompositions are indexed by the integers.";
+
+  A := CopyDecompositionAlgebra(A);  
   for i in I do
-    AddDecomposition(~A, i);
+    add_decomp(~A, i);
   end for;
+  
+  // Need to delete or update the Miyamoto group
+  for char in [ "Miyamoto_group", "Miyamoto_map", "universal_Miyamoto_group", "universal_projection"] do
+    delete A``char;
+  end for;
+  
   return A;
 end intrinsic;
 /*
@@ -1111,10 +1135,13 @@ intrinsic 'eq'(D1::Dec, D2::Dec) -> BoolElt
   if Type(D1) ne Type(D2) then
     return false;
   elif Type(D1) eq Dec then
-    return Algebra(D1) eq Algebra(D2) and D1`parts eq D2`parts;
+    return Algebra(Algebra(D1)) eq Algebra(Algebra(D2)) and D1`parts eq D2`parts;
   else
     assert Type(D1) eq AxlDec;
-    return Algebra(D1) eq Algebra(D2) and D1`parts eq D2`parts and Axis(D1) eq Axis(D2);
+    // Otherwise we get an infinite recursion checking equality of DecAlgs
+    // So instead we check whether the AlgGens are the same
+    // Similarly for the axes
+    return Algebra(Algebra(D1)) eq Algebra(Algebra(D2)) and D1`parts eq D2`parts and Vector(Axis(D1)) eq Vector(Axis(D2));
   end if;
 end intrinsic;
 

@@ -44,11 +44,18 @@ end intrinsic;
 function miy_matrix(A,i,x);
   F := FusionLaw(A);
   X := Elements(F);
-  _, gr := Grading(F);
-  D := Decompositions(A)[i]; 
-  BM := Matrix(&cat[ Basis(Part(D,i)) : i in X ]);
-  M := DiagonalMatrix(&cat[ [ x(gr(e)) : i in [1..Dimension(Part(D,e))] ] : e in X ]);
-  return BM^-1 * M * BM;
+  Gr, gr := Grading(F);
+  D := Decompositions(A)[i];
+
+  // find the different graded parts
+  gr_parts := [ [ j : j in X | j@gr eq g ] : g in Gr];
+
+  // Take the basis of the sum of the graded parts
+  BM := Matrix(&cat[ Basis(&+[ Part(D,j) : j in S]) : S in gr_parts ]);
+  dims := [ &+[ Dimension(Part(D,j)) : j in S] : S in gr_parts ];
+  diag := DiagonalMatrix(&cat[ [ x(gr(gr_parts[j,1])) : k in [1..dims[j]]] : j in [1..#gr_parts]]);
+  
+  return BM^-1 * diag * BM;
 end function;
 
 // Written a wrapper for the moment.  Why should this and miy_matrix be different??
@@ -290,7 +297,7 @@ intrinsic IsMiyamotoClosed(A::DecAlg, x::GrpElt) -> BoolElt, SetMulti
       DVSM := [ [ P*M : P in Ps ] : Ps in DVS ];
       NewBases := {* [ Basis(VS) : VS in DVSMi ]:DVSMi in DVSM*};
     end if;
-    if OriginalBases ne NewBases then 
+    if OriginalBases ne NewBases then
       return false, NewBases diff OriginalBases;
     end if;
   end for;
