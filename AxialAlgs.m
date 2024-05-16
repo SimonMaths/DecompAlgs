@@ -70,7 +70,7 @@ intrinsic IsPrimitive(A::AxlDecAlg) -> BoolElt
 end intrinsic;
 
 intrinsic AxialDecompositionAlgebra(mult::ModMatFldElt, ax::ModGrpElt, H::Grp) 
-    -> DecAlg
+    -> AxlDecAlg
   {
     Creates an axial decomposition algebra from a multiplication and list of
     axes.
