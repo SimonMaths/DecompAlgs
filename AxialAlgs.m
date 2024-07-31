@@ -234,7 +234,6 @@ intrinsic IsAxis(a::AxlDecAlgElt) -> BoolElt, Dec
   return true, dec;
 end intrinsic;
 
-
 intrinsic Decomposition(a::AxlDecAlgElt) -> Dec
   {
   Returns a decomposition for which a is the axis.  Note that there may be others.
@@ -243,6 +242,16 @@ intrinsic Decomposition(a::AxlDecAlgElt) -> Dec
   require so: "The element is not an axis";
   
   return dec;
+end intrinsic;
+
+intrinsic Evaluation(a::AxlDecAlgElt) -> Map
+  {
+  Returns the evaluation for a decomposition for which a is the axis.  Note that there may be others.
+  }
+  so, dec := IsAxis(a);
+  require so: "The element is not an axis";
+  
+  return Evaluation(dec);
 end intrinsic;
 
 intrinsic Parts(a::AxlDecAlgElt) -> SeqEnum
@@ -320,8 +329,6 @@ intrinsic AxialDecomposition(A::DecAlg, S::[ModTupRng], axis::.) -> AxlDec
 
   return D;
 end intrinsic;
-
-
 // --------------------------------------------
 //
 //         Axial Algebras
